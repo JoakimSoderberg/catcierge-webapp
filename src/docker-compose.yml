@@ -1,12 +1,18 @@
 version: '2'
 services:
-  web:
-    build: .
+  rest:
+    build: ./rest
     ports:
      - "5000:5000"
     volumes:
-     - .:/go/src/app
+     - ./rest:/go/src/app
+     - ./swagger-ui/dist:/swagger-ui-dist
     depends_on:
      - mongo
+  #swagger-ui:
+  #  build: ./swagger-ui
+  #  volumes:
+  #   - swagger-ui-dist:/
   mongo:
     image: mongo
+  # TODO: Add web docker (polymer)
