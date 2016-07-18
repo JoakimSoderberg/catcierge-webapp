@@ -3,16 +3,12 @@ services:
   rest:
     build: ./rest
     ports:
+     - "8080:8080"
      - "5000:5000"
     volumes:
      - ./rest:/go/src/app
-     - ./swagger-ui/dist:/swagger-ui-dist
-    depends_on:
-     - mongo
-  #swagger-ui:
-  #  build: ./swagger-ui
-  #  volumes:
-  #   - swagger-ui-dist:/
-  mongo:
-    image: mongo
+  #  depends_on:
+  #   - mongo
+  #mongo:
+  #  image: mongo
   # TODO: Add web docker (polymer)
