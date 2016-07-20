@@ -63,7 +63,7 @@ func main() {
     config := swagger.Config {
         WebServices:    wsContainer.RegisteredWebServices(), // you control what services are visible
         WebServicesUrl: "http://localhost:8080",
-        ApiPath:        "/apidocs.json",
+        ApiPath:        "/apidocs/swagger.json",
 
         // Optionally, specifiy where the UI is located
         SwaggerPath:     "/apidocs/",
