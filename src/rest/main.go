@@ -12,7 +12,7 @@ import (
     "github.com/emicklei/go-restful/swagger"
 )
 
-type CatEvent struct {
+type CatEventData struct {
     ID                  string `json:"id"`
     EventJSONVersion    string `json:"event_json_version"`
     CatciergeType       string `json:"catcierge_type"`
@@ -73,11 +73,12 @@ type CatEvent struct {
     Version           string `json:"version"`
 }
 
-/*
+
 type CatEvent struct {
-    Id string
-    Start_time time.Time
-}*/
+    name string
+    data CatEventData
+    tags 
+}
 
 type CatEventResource struct {
     // TODO: Replace with MongoDB
