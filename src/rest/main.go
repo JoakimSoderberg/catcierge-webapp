@@ -6,10 +6,13 @@ import (
     "log"
     "net/http"
 //  "strconv"
-//  "archive/zip" // TODO: Add unzip support
-
+    "archive/zip" // TODO: Add unzip support
+    "os"
+    "io"
+    "path/filepath"
     "github.com/emicklei/go-restful"
     "github.com/emicklei/go-restful/swagger"
+    "labix.org/v2/mgo/bson"
 )
 
 type CatEventData struct {
@@ -17,7 +20,7 @@ type CatEventData struct {
     EventJSONVersion    string `json:"event_json_version"`
     CatciergeType       string `json:"catcierge_type"`
     Description         string `json:"description"`
-    Start                time.Time `json:"start"`
+    Start               time.Time `json:"start"`
     End                 string `json:"end"`
     TimeGenerated       time.Time `json:"time_generated"`
     Timezone            string `json:"timezone"`
@@ -29,13 +32,20 @@ type CatEventData struct {
     MatchGroupDirection string `json:"match_group_direction"`
     MatchGroupMaxCount  int    `json:"match_group_max_count"`
     MatchGroupSuccess   int    `json:"match_group_success"`
+    Rootpath            string `json:"rootpath"`
+    State               string `json:"state"`
+    PrevState           string `json:"prev_state"`
+    Version             string `json:"version"`
     Matches             []struct {
+        ID          string `json:"id"`
         Description string `json:"description"`
         Directon    string `json:"direction"`
         Filename    string `json:"filename"`
-        ID          string `json:"id"`
         Path        string `json:"path"`
         Result      int    `json:"result"`
+        Success     int    `json:"success"`
+        Time        time.Time `json:"time"`
+        IsFalsePositive bool `json:"is_false_positive"`
         StepCount   int    `json:"step_count"`
         Steps       []struct {
             Active      int    `json:"active"`
@@ -44,10 +54,7 @@ type CatEventData struct {
             Name        string `json:"name"`
             Path        string `json:"path"`
         } `json:"steps"`
-        Success int    `json:"success"`
-        Time    time.Time `json:"time"`
     } `json:"matches"`
-    Rootpath  string `json:"rootpath"`
     Settings  struct {
         HaarMatcher struct {
             Cascade       string `json:"cascade"`
@@ -68,16 +75,13 @@ type CatEventData struct {
         NoFinalDecision   int    `json:"no_final_decision"`
         OkMatchesNeeded   int    `json:"ok_matches_needed"`
     } `json:"settings"`
-    State             string `json:"state"`
-    PrevState         string `json:"prev_state"`
-    Version           string `json:"version"`
 }
 
-
 type CatEvent struct {
-    name string
-    data CatEventData
-    tags 
+    ID bson.ObjectId    `bson:"_id"`
+    Name string
+    Data CatEventData   `bson:"data"`
+    Tags []string       `bson:"tags"`
 }
 
 type CatEventResource struct {
@@ -105,12 +109,71 @@ func (u CatEventResource) Register(container *restful.Container) {
 func (u CatEventResource) findEvent(request *restful.Request, response *restful.Response) {
     id := request.PathParameter("event-id")
     event := u.events[id]
+
     if len(event.ID) == 0 {
         response.AddHeader("Content-Type", "text/plain")
         response.WriteErrorString(http.StatusNotFound, "404: Event could not be found.")
         return
     }
     response.WriteEntity(event)
+}
+
+func Unzip(src, dest string) error {
+    r, err := zip.OpenReader(src)
+    if err != nil {
+        return err
+    }
+    defer func() {
+        if err := r.Close(); err != nil {
+            panic(err)
+        }
+    }()
+
+    os.MkdirAll(dest, 0755)
+
+    // Closure to address file descriptors issue with all the deferred .Close() methods
+    extractAndWriteFile := func(f *zip.File) error {
+        rc, err := f.Open()
+        if err != nil {
+            return err
+        }
+        defer func() {
+            if err := rc.Close(); err != nil {
+                panic(err)
+            }
+        }()
+
+        path := filepath.Join(dest, f.Name)
+
+        if f.FileInfo().IsDir() {
+            os.MkdirAll(path, f.Mode())
+        } else {
+            f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+            if err != nil {
+                return err
+            }
+            defer func() {
+                if err := f.Close(); err != nil {
+                    panic(err)
+                }
+            }()
+
+            _, err = io.Copy(f, rc)
+            if err != nil {
+                return err
+            }
+        }
+        return nil
+    }
+
+    for _, f := range r.File {
+        err := extractAndWriteFile(f)
+        if err != nil {
+            return err
+        }
+    }
+
+    return nil
 }
 
 func main() {
