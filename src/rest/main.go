@@ -9,6 +9,8 @@ import (
     "archive/zip" // TODO: Add unzip support
     "os"
     "io"
+    "io/ioutil"
+    "strings"
     "path/filepath"
     "github.com/emicklei/go-restful"
     "github.com/emicklei/go-restful/swagger"
@@ -89,7 +91,7 @@ type CatEventResource struct {
     events map[string]CatEvent
 }
 
-func (u CatEventResource) Register(container *restful.Container) {
+func (ev CatEventResource) Register(container *restful.Container) {
     ws := new(restful.WebService)
 
     ws.Path("/events").
@@ -97,18 +99,22 @@ func (u CatEventResource) Register(container *restful.Container) {
         Consumes(restful.MIME_XML, restful.MIME_JSON).
         Produces(restful.MIME_JSON, restful.MIME_XML)
 
-    ws.Route(ws.GET("/{event-id}").To(u.findEvent).
+    ws.Route(ws.GET("/{event-id}").To(ev.findEvent).
         Doc("Get an event").
         Operation("findEvent").
         Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
         Writes(CatEvent{}))
 
+    ws.Route(ws.POST("").To(ev.createEvent).
+        Doc("Create an event").
+        Operation("createEvent"))
+
     container.Add(ws)
 }
 
-func (u CatEventResource) findEvent(request *restful.Request, response *restful.Response) {
+func (ev CatEventResource) findEvent(request *restful.Request, response *restful.Response) {
     id := request.PathParameter("event-id")
-    event := u.events[id]
+    event := ev.events[id]
 
     if len(event.ID) == 0 {
         response.AddHeader("Content-Type", "text/plain")
@@ -118,6 +124,59 @@ func (u CatEventResource) findEvent(request *restful.Request, response *restful.
     response.WriteEntity(event)
 }
 
+
+func WriteCatciergeErrorString(response *restful.Response, httpStatus int, message string) {
+    // TODO: Change to JSON.
+
+    if message == "" {
+        message = http.StatusText(httpStatus)
+    }
+
+    response.AddHeader("Content-Type", "text/plain")
+    response.WriteErrorString(http.StatusInternalServerError, fmt.Sprintf("%v: %s", httpStatus, message))
+}
+
+// curl --verbose --header "Content-Type: application/zip" --data-binary @file.zip http://awesome
+func (ev *CatEventResource) createEvent(request *restful.Request, response *restful.Response) {
+    //sr := User{Id: request.PathParameter("event-id")}
+
+    // TODO: Check file size so it is not too big. Maybe as a filter?
+
+    // Save the ZIP on the filesystem temporarily.
+    tmpfile, err := ioutil.TempFile("/tmp/", "event")
+    if err != nil {
+        WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
+        return
+    }
+
+    defer os.Remove(tmpfile.Name())
+
+    content, err := ioutil.ReadAll(request.Request.Body)
+    if err != nil {
+        WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
+        return
+    }
+
+    if _, err := tmpfile.Write(content); err != nil {
+        WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
+        return
+    }
+    if err := tmpfile.Close(); err != nil {
+        WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
+        return
+    }
+
+    // Unzip the file to the output directory.
+    tmpfileNoExt := strings.TrimSuffix(tmpfile.Name(), filepath.Ext(tmpfile.Name()))
+    destDir := filepath.Join("/go/src/app/events/", tmpfileNoExt)
+
+    if err := Unzip(tmpfile.Name(), destDir); err != nil {
+        WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
+        return
+    }
+}
+
+// TODO: Move to separate file
 func Unzip(src, dest string) error {
     r, err := zip.OpenReader(src)
     if err != nil {
@@ -177,10 +236,11 @@ func Unzip(src, dest string) error {
 }
 
 func main() {
-    fmt.Println("hello worldsss");
-
     wsContainer := restful.NewContainer()
 
+    // TODO: Enable to configure directory where data is unzipped.
+
+    // TODO: Replace with mongodb
     cr := CatEventResource {map[string]CatEvent{}}
 
     cr.Register(wsContainer)
