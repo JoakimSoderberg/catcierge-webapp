@@ -8,10 +8,17 @@ RUN npm install -g swagger-ui
 RUN mkdir -p /go/src/app
 WORKDIR /go/src/app
 
-COPY . /go/src/app
-RUN go-wrapper download
-RUN go-wrapper install
+RUN mkdir -p /go/src/app/Godeps
+COPY ./Godeps /go/src/app/Godeps
 
-CMD ["go-wrapper", "run"]
+# Get dependencies
+RUN go get github.com/tools/godep
+RUN godep restore
+
+COPY . /go/src/app
+RUN godep go build .
+
+#CMD ["go-wrapper", "run"]
+CMD ["go", "run", "main.go"]
 
 EXPOSE 8080
