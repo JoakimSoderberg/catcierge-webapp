@@ -90,39 +90,11 @@ type CatEventResource struct {
     events map[string]CatEvent
 }
 
-func (ev CatEventResource) Register(container *restful.Container) {
-    ws := new(restful.WebService)
-
-    ws.Path("/events").
-        Doc("Manage events").
-        Consumes(restful.MIME_XML, restful.MIME_JSON).
-        Produces(restful.MIME_JSON, restful.MIME_XML)
-
-    ws.Route(ws.GET("/{event-id}").To(ev.findEvent).
-        Doc("Get an event").
-        Operation("findEvent").
-        Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
-        Writes(CatEvent{}))
-
-    ws.Route(ws.POST("").To(ev.createEvent).
-        Doc("Create an event").
-        Operation("createEvent"))
-
-    container.Add(ws)
+type CatError struct {
+    HttpStatusCode int  `json:"http_status_code"`
+    HttpStatus string   `json:"http_status"`
+    Message string      `json:"message"`
 }
-
-func (ev CatEventResource) findEvent(request *restful.Request, response *restful.Response) {
-    id := request.PathParameter("event-id")
-    event := ev.events[id]
-
-    if len(event.ID) == 0 {
-        response.AddHeader("Content-Type", "text/plain")
-        response.WriteErrorString(http.StatusNotFound, "404: Event could not be found.")
-        return
-    }
-    response.WriteEntity(event)
-}
-
 
 func WriteCatciergeErrorString(response *restful.Response, httpStatus int, message string) {
     // TODO: Change to JSON.
@@ -133,6 +105,63 @@ func WriteCatciergeErrorString(response *restful.Response, httpStatus int, messa
 
     response.AddHeader("Content-Type", "text/plain")
     response.WriteErrorString(http.StatusInternalServerError, fmt.Sprintf("%v: %s", httpStatus, message))
+}
+
+func Returns200(b *restful.RouteBuilder) {
+    b.Returns(http.StatusOK, http.StatusText(http.StatusOK), nil)
+}
+
+func Returns500(b *restful.RouteBuilder) {
+    b.Returns(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), CatError{})
+}
+
+func Returns400(b *restful.RouteBuilder) {
+    b.Returns(http.StatusBadRequest,
+              http.StatusText(http.StatusBadRequest),
+              CatError {HttpStatusCode: http.StatusBadRequest, HttpStatus: http.StatusText(http.StatusBadRequest)})
+}
+
+
+func (ev CatEventResource) Register(container *restful.Container) {
+    ws := new(restful.WebService)
+
+    ws.Path("/events").
+        Doc("Manage events").
+        Consumes(restful.MIME_XML, restful.MIME_JSON).
+        Produces(restful.MIME_JSON, restful.MIME_XML)
+
+    ws.Route(ws.GET("").To(ev.listEvents).
+        Doc("Get all events").
+        Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
+        Do(Returns500))
+
+    ws.Route(ws.GET("/{event-id}").To(ev.findEvent).
+        Doc("Get an event").
+        Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
+        Returns(http.StatusOK, http.StatusText(http.StatusOK), CatEvent{}).
+        Do(Returns500).
+        Writes(CatEvent{}))
+
+    ws.Route(ws.POST("").To(ev.createEvent).
+        Doc("Create an event based on an event ZIP file").
+        Do(Returns400, Returns500))
+
+    container.Add(ws)
+}
+
+func (ev CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
+    response.WriteEntity(ev.events)
+}
+
+func (ev CatEventResource) findEvent(request *restful.Request, response *restful.Response) {
+    id := request.PathParameter("event-id")
+    event := ev.events[id]
+
+    if len(event.ID) == 0 {
+        WriteCatciergeErrorString(response, http.StatusNotFound, "Event could not be found")
+        return
+    }
+    response.WriteEntity(event)
 }
 
 // curl --verbose --header "Content-Type: application/zip" --data-binary @file.zip http://awesome
@@ -167,12 +196,15 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 
     // Unzip the file to the output directory.
     tmpfileNoExt := strings.TrimSuffix(tmpfile.Name(), filepath.Ext(tmpfile.Name()))
+    // TODO: Make this path configurable.
     destDir := filepath.Join("/go/src/app/events/", tmpfileNoExt)
 
     if err := Unzip(tmpfile.Name(), destDir); err != nil {
         WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
         return
     }
+
+    //response.WriteHeaderAndEntity(http.StatusCreated, usr)
 }
 
 // TODO: Move to separate file
