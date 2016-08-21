@@ -18,8 +18,9 @@ COPY ./Godeps /go/src/app/Godeps
 RUN godep restore
 
 COPY . /go/src/app
-RUN godep go build .
+#RUN godep go build .
 
-CMD ["go", "run", "main.go"]
+# TODO: Make this nicer so we don't have to list all files...
+CMD ["go", "run", "main.go", "cat_event.go"]
 
 EXPOSE 8080
