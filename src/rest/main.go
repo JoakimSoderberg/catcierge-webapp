@@ -97,30 +97,33 @@ type CatError struct {
 }
 
 func WriteCatciergeErrorString(response *restful.Response, httpStatus int, message string) {
-    // TODO: Change to JSON.
-
     if message == "" {
         message = http.StatusText(httpStatus)
     }
 
-    response.AddHeader("Content-Type", "text/plain")
-    response.WriteErrorString(http.StatusInternalServerError, fmt.Sprintf("%v: %s", httpStatus, message))
+    response.AddHeader("Content-Type", "application/json")
+    response.WriteEntity(&CatError{HttpStatusCode: httpStatus, HttpStatus: http.StatusText(httpStatus), Message: message})
 }
 
 func Returns200(b *restful.RouteBuilder) {
     b.Returns(http.StatusOK, http.StatusText(http.StatusOK), nil)
 }
 
-func Returns500(b *restful.RouteBuilder) {
-    b.Returns(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), CatError{})
-}
-
 func Returns400(b *restful.RouteBuilder) {
     b.Returns(http.StatusBadRequest,
               http.StatusText(http.StatusBadRequest),
-              CatError {HttpStatusCode: http.StatusBadRequest, HttpStatus: http.StatusText(http.StatusBadRequest)})
+              CatError{})
 }
 
+func Returns404(b *restful.RouteBuilder) {
+    b.Returns(http.StatusNotFound,
+              http.StatusText(http.StatusNotFound),
+              CatError{})
+}
+
+func Returns500(b *restful.RouteBuilder) {
+    b.Returns(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), CatError{})
+}
 
 func (ev CatEventResource) Register(container *restful.Container) {
     ws := new(restful.WebService)
@@ -130,7 +133,7 @@ func (ev CatEventResource) Register(container *restful.Container) {
         Consumes(restful.MIME_XML, restful.MIME_JSON).
         Produces(restful.MIME_JSON, restful.MIME_XML)
 
-    ws.Route(ws.GET("").To(ev.listEvents).
+    ws.Route(ws.GET("/").To(ev.listEvents).
         Doc("Get all events").
         Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
         Do(Returns500))
@@ -139,7 +142,7 @@ func (ev CatEventResource) Register(container *restful.Container) {
         Doc("Get an event").
         Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
         Returns(http.StatusOK, http.StatusText(http.StatusOK), CatEvent{}).
-        Do(Returns500).
+        Do(Returns404, Returns500).
         Writes(CatEvent{}))
 
     ws.Route(ws.POST("").To(ev.createEvent).
@@ -155,12 +158,13 @@ func (ev CatEventResource) listEvents(request *restful.Request, response *restfu
 
 func (ev CatEventResource) findEvent(request *restful.Request, response *restful.Response) {
     id := request.PathParameter("event-id")
-    event := ev.events[id]
+    event, ok := ev.events[id]
 
-    if len(event.ID) == 0 {
-        WriteCatciergeErrorString(response, http.StatusNotFound, "Event could not be found")
+    if !ok {
+        WriteCatciergeErrorString(response, http.StatusNotFound, fmt.Sprintf("Event '%v' could not be found", id))
         return
     }
+
     response.WriteEntity(event)
 }
 
