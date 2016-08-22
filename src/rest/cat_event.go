@@ -103,8 +103,8 @@ func (ev CatEventResource) Register(container *restful.Container) {
         Doc("Get an event").
         Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
         Do(ReturnsStatus(http.StatusOK, "", CatEvent{}),
-           ReturnsStatus(http.StatusNotFound, "", CatError{}),
-           ReturnsStatus(http.StatusInternalServerError, "", CatError{})).
+           ReturnsError(http.StatusNotFound),
+           ReturnsError(http.StatusInternalServerError)).
         Writes(CatEvent{}))
 
     ws.Route(ws.POST("").To(ev.createEvent).
