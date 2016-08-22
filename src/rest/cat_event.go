@@ -5,6 +5,7 @@ import (
 	"github.com/emicklei/go-restful"
 	"io/ioutil"
 	"labix.org/v2/mgo/bson"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -91,7 +92,7 @@ func (ev CatEventResource) Register(container *restful.Container) {
 
 	ws.Path("/events").
 		Doc("Manage events").
-		Consumes(restful.MIME_XML, restful.MIME_JSON).
+		Consumes(restful.MIME_XML, restful.MIME_JSON, "application/zip").
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
 	ws.Route(ws.GET("/").To(ev.listEvents).
@@ -144,9 +145,12 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 
 	// TODO: Check file size so it is not too big. Maybe as a filter?
 
+	log.Printf("Received file\n")
+
 	// Save the ZIP on the filesystem temporarily.
 	tmpfile, err := ioutil.TempFile("/tmp/", "event")
 	if err != nil {
+		log.Printf("Failed to get temp file name")
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
@@ -155,11 +159,13 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 
 	content, err := ioutil.ReadAll(request.Request.Body)
 	if err != nil {
+		log.Printf("Failed to read body\n")
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
 
 	if _, err := tmpfile.Write(content); err != nil {
+		log.Printf("Failed to write to tmpfile %v", tmpfile.Name())
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
@@ -173,9 +179,12 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 	destDir := filepath.Join(*unzipPath, tmpfileNoExt)
 
 	if err := Unzip(tmpfile.Name(), destDir); err != nil {
+		log.Printf("Failed to unzip file %v to %v", tmpfile.Name(), destDir)
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
 
-	//response.WriteHeaderAndEntity(http.StatusCreated, usr)
+	response.WriteHeader(http.StatusCreated)
+
+	log.Printf("Successfully unpacked event\n")
 }
