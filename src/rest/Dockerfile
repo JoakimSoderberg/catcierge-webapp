@@ -21,6 +21,6 @@ COPY . /go/src/app
 #RUN godep go build .
 
 # TODO: Make this nicer so we don't have to list all files...
-CMD ["go", "run", "main.go", "cat_event.go"]
+CMD ["go", "run", "main.go", "cat_event.go", "unzip.go"]
 
 EXPOSE 8080
