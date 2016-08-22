@@ -75,10 +75,10 @@ type CatEventData struct {
 }
 
 type CatEvent struct {
-	ID   bson.ObjectId `json:"id", bson:"_id"`
+	ID   bson.ObjectId `json:"id" bson:"_id"`
 	Name string        `json:"name"`
-	Data CatEventData  `json:"data", bson:"data"`
-	Tags []string      `json:"tags", bson:"tags"`
+	Data CatEventData  `json:"data" bson:"data"`
+	Tags []string      `json:"tags" bson:"tags"`
 }
 
 type CatEventResource struct {
