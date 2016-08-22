@@ -97,9 +97,9 @@ func (ev CatEventResource) Register(container *restful.Container) {
     ws.Route(ws.GET("/").To(ev.listEvents).
         Doc("Get all events").
         Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
-        Do(Returns500))
+        Do(ReturnsError(http.StatusInternalServerError)))
 
-    ws.Route(ws.GET("/{event-id}").To(ev.findEvent).
+    ws.Route(ws.GET("/{event-id}").To(ev.getEvent).
         Doc("Get an event").
         Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
         Do(ReturnsStatus(http.StatusOK, "", CatEvent{}),
@@ -109,7 +109,8 @@ func (ev CatEventResource) Register(container *restful.Container) {
 
     ws.Route(ws.POST("").To(ev.createEvent).
         Doc("Create an event based on an event ZIP file").
-        Do(Returns400, Returns500))
+        Do(ReturnsError(http.StatusBadRequest),
+           ReturnsError(http.StatusInternalServerError)))
 
     container.Add(ws)
 }
@@ -118,7 +119,7 @@ func (ev CatEventResource) listEvents(request *restful.Request, response *restfu
     response.WriteEntity(ev.events)
 }
 
-func (ev CatEventResource) findEvent(request *restful.Request, response *restful.Response) {
+func (ev CatEventResource) getEvent(request *restful.Request, response *restful.Response) {
     id := request.PathParameter("event-id")
     event, ok := ev.events[id]
 

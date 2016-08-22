@@ -32,23 +32,3 @@ func ReturnsStatus(httpStatus int, message string, model interface{}) func(b *re
 func ReturnsError(httpStatus int) func(b *restful.RouteBuilder) {
     return ReturnsStatus(httpStatus, "", CatError{})
 }
-
-func Returns200(b *restful.RouteBuilder) {
-    b.Returns(http.StatusOK, http.StatusText(http.StatusOK), nil)
-}
-
-func Returns400(b *restful.RouteBuilder) {
-    b.Returns(http.StatusBadRequest,
-              http.StatusText(http.StatusBadRequest),
-              CatError{})
-}
-
-func Returns404(b *restful.RouteBuilder) {
-    b.Returns(http.StatusNotFound,
-              http.StatusText(http.StatusNotFound),
-              CatError{})
-}
-
-func Returns500(b *restful.RouteBuilder) {
-    b.Returns(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), CatError{})
-}
