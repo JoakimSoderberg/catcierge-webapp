@@ -2,12 +2,22 @@ package main
 
 import (
     "log"
+    "fmt"
     "net/http"    
     "github.com/emicklei/go-restful"
     "github.com/emicklei/go-restful/swagger"
+    "gopkg.in/alecthomas/kingpin.v2"
+)
+
+var (
+    port = kingpin.Flag("port", "Listen port for the web server.").Short('p').Int() 
 )
 
 func main() {
+
+    kingpin.Parse()
+    fmt.Printf("Port = %v\n", port)
+
     wsContainer := restful.NewContainer()
 
     // TODO: Enable to configure directory where data is unzipped.

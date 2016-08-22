@@ -1,27 +1,44 @@
 {
-        "ImportPath": "app",
-        "GoVersion": "go1.6",
-        "GodepVersion": "v74",
-        "Deps": [
-                {
-                        "ImportPath": "github.com/emicklei/go-restful",
-                        "Comment": "v1.2-79-g89ef8af",
-                        "Rev": "89ef8af493ab468a45a42bb0d89a06fccdd2fb22"
-                },
-                {
-                        "ImportPath": "github.com/emicklei/go-restful/log",
-                        "Comment": "v1.2-79-g89ef8af",
-                        "Rev": "89ef8af493ab468a45a42bb0d89a06fccdd2fb22"
-                },
-                {
-                        "ImportPath": "github.com/emicklei/go-restful/swagger",
-                        "Comment": "v1.2-79-g89ef8af",
-                        "Rev": "89ef8af493ab468a45a42bb0d89a06fccdd2fb22"
-                },
-                {
-                        "ImportPath": "labix.org/v2/mgo/bson",
-                        "Comment": "287",
-                        "Rev": "gustavo@niemeyer.net-20140501184651-975yyw9ipld92pji"
-                }
-        ]
+	"ImportPath": "app",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v74",
+	"Deps": [
+		{
+			"ImportPath": "github.com/alecthomas/template",
+			"Rev": "a0175ee3bccc567396460bf5acd36800cb10c49c"
+		},
+		{
+			"ImportPath": "github.com/alecthomas/template/parse",
+			"Rev": "a0175ee3bccc567396460bf5acd36800cb10c49c"
+		},
+		{
+			"ImportPath": "github.com/alecthomas/units",
+			"Rev": "2efee857e7cfd4f3d0138cc3cbb1b4966962b93a"
+		},
+		{
+			"ImportPath": "github.com/emicklei/go-restful",
+			"Comment": "v1.2-79-g89ef8af",
+			"Rev": "89ef8af493ab468a45a42bb0d89a06fccdd2fb22"
+		},
+		{
+			"ImportPath": "github.com/emicklei/go-restful/log",
+			"Comment": "v1.2-79-g89ef8af",
+			"Rev": "89ef8af493ab468a45a42bb0d89a06fccdd2fb22"
+		},
+		{
+			"ImportPath": "github.com/emicklei/go-restful/swagger",
+			"Comment": "v1.2-79-g89ef8af",
+			"Rev": "89ef8af493ab468a45a42bb0d89a06fccdd2fb22"
+		},
+		{
+			"ImportPath": "gopkg.in/alecthomas/kingpin.v2",
+			"Comment": "v2.2.2",
+			"Rev": "e5900212cbf65b181d3d8e08308ef06a01d117cf"
+		},
+		{
+			"ImportPath": "labix.org/v2/mgo/bson",
+			"Comment": "287",
+			"Rev": "gustavo@niemeyer.net-20140501184651-975yyw9ipld92pji"
+		}
+	]
 }
