@@ -1,15 +1,13 @@
 package main
 
 import (
-    "fmt"
+    //"fmt"
     //"time"
     "log"
     "net/http"
     "archive/zip"
     "os"
     "io"
-    "io/ioutil"
-    "strings"
     "path/filepath"
     "github.com/emicklei/go-restful"
     "github.com/emicklei/go-restful/swagger"
@@ -49,92 +47,6 @@ func Returns404(b *restful.RouteBuilder) {
 
 func Returns500(b *restful.RouteBuilder) {
     b.Returns(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), CatError{})
-}
-
-func (ev CatEventResource) Register(container *restful.Container) {
-    ws := new(restful.WebService)
-
-    ws.Path("/events").
-        Doc("Manage events").
-        Consumes(restful.MIME_XML, restful.MIME_JSON).
-        Produces(restful.MIME_JSON, restful.MIME_XML)
-
-    ws.Route(ws.GET("/").To(ev.listEvents).
-        Doc("Get all events").
-        Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
-        Do(Returns500))
-
-    ws.Route(ws.GET("/{event-id}").To(ev.findEvent).
-        Doc("Get an event").
-        Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
-        Returns(http.StatusOK, http.StatusText(http.StatusOK), CatEvent{}).
-        Do(Returns404, Returns500).
-        Writes(CatEvent{}))
-
-    ws.Route(ws.POST("").To(ev.createEvent).
-        Doc("Create an event based on an event ZIP file").
-        Do(Returns400, Returns500))
-
-    container.Add(ws)
-}
-
-func (ev CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
-    response.WriteEntity(ev.events)
-}
-
-func (ev CatEventResource) findEvent(request *restful.Request, response *restful.Response) {
-    id := request.PathParameter("event-id")
-    event, ok := ev.events[id]
-
-    if !ok {
-        WriteCatciergeErrorString(response, http.StatusNotFound, fmt.Sprintf("Event '%v' could not be found", id))
-        return
-    }
-
-    response.WriteEntity(event)
-}
-
-// curl --verbose --header "Content-Type: application/zip" --data-binary @file.zip http://awesome
-func (ev *CatEventResource) createEvent(request *restful.Request, response *restful.Response) {
-    //sr := User{Id: request.PathParameter("event-id")}
-
-    // TODO: Check file size so it is not too big. Maybe as a filter?
-
-    // Save the ZIP on the filesystem temporarily.
-    tmpfile, err := ioutil.TempFile("/tmp/", "event")
-    if err != nil {
-        WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
-        return
-    }
-
-    defer os.Remove(tmpfile.Name())
-
-    content, err := ioutil.ReadAll(request.Request.Body)
-    if err != nil {
-        WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
-        return
-    }
-
-    if _, err := tmpfile.Write(content); err != nil {
-        WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
-        return
-    }
-    if err := tmpfile.Close(); err != nil {
-        WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
-        return
-    }
-
-    // Unzip the file to the output directory.
-    tmpfileNoExt := strings.TrimSuffix(tmpfile.Name(), filepath.Ext(tmpfile.Name()))
-    // TODO: Make this path configurable.
-    destDir := filepath.Join("/go/src/app/events/", tmpfileNoExt)
-
-    if err := Unzip(tmpfile.Name(), destDir); err != nil {
-        WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
-        return
-    }
-
-    //response.WriteHeaderAndEntity(http.StatusCreated, usr)
 }
 
 // TODO: Move to separate file
@@ -210,7 +122,7 @@ func main() {
     // TODO: Set ports and all via command line options
     config := swagger.Config {
         WebServices:    wsContainer.RegisteredWebServices(), // you control what services are visible
-        WebServicesUrl: "http://localhost:8080",
+        WebServicesUrl: "http://192.168.99.100:8080",
         ApiPath:        "/apidocs/swagger.json",
 
         // Optionally, specifiy where the UI is located
@@ -219,7 +131,7 @@ func main() {
 
     swagger.RegisterSwaggerService(config, wsContainer)
 
-    log.Printf("start listening on localhost:8080")
+    log.Printf("start listening on port 8080")
     server := &http.Server{Addr: ":8080", Handler: wsContainer}
     log.Fatal(server.ListenAndServe())
 }
