@@ -17,9 +17,9 @@ COPY ./Godeps /go/src/app/Godeps
 # Get dependencies.
 RUN godep restore
 
+EXPOSE 8080
+
 COPY . /go/src/app
 RUN godep go build -o $GOPATH/bin/catcierge-rest .
 
 CMD ["catcierge-rest"]
-
-EXPOSE 8080

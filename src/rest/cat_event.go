@@ -1,15 +1,15 @@
 package main
 
 import (
-	"os"
-	"fmt"
-	"time"
-	"io/ioutil"
-	"path/filepath"
+    "os"
+    "fmt"
+    "time"
+    "io/ioutil"
+    "path/filepath"
     "strings"
     "net/http"
-	"labix.org/v2/mgo/bson"
-	"github.com/emicklei/go-restful"
+    "labix.org/v2/mgo/bson"
+    "github.com/emicklei/go-restful"
 )
 
 type CatEventData struct {
@@ -76,7 +76,7 @@ type CatEventData struct {
 
 type CatEvent struct {
     ID bson.ObjectId    `json:"id", bson:"_id"`
-    Name string			`json:"name"`
+    Name string         `json:"name"`
     Data CatEventData   `json:"data", bson:"data"`
     Tags []string       `json:"tags", bson:"tags"`
 }
@@ -131,6 +131,13 @@ func (ev CatEventResource) getEvent(request *restful.Request, response *restful.
     response.WriteEntity(event)
 }
 
+var (
+    unzipPath = app.Flag("unzip-path", "Unzip the uploaded event files in this path.").
+                    Short('u').
+                    Default("/go/src/app/events/").
+                    String()
+)
+
 // curl --verbose --header "Content-Type: application/zip" --data-binary @file.zip http://awesome
 func (ev *CatEventResource) createEvent(request *restful.Request, response *restful.Response) {
     //sr := User{Id: request.PathParameter("event-id")}
@@ -163,8 +170,7 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 
     // Unzip the file to the output directory.
     tmpfileNoExt := strings.TrimSuffix(tmpfile.Name(), filepath.Ext(tmpfile.Name()))
-    // TODO: Make this path configurable.
-    destDir := filepath.Join("/go/src/app/events/", tmpfileNoExt)
+    destDir := filepath.Join(*unzipPath, tmpfileNoExt)
 
     if err := Unzip(tmpfile.Name(), destDir); err != nil {
         WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
