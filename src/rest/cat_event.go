@@ -10,7 +10,6 @@ import (
     "net/http"
 	"labix.org/v2/mgo/bson"
 	"github.com/emicklei/go-restful"
-    //"github.com/emicklei/go-restful/swagger"
 )
 
 type CatEventData struct {
@@ -103,8 +102,9 @@ func (ev CatEventResource) Register(container *restful.Container) {
     ws.Route(ws.GET("/{event-id}").To(ev.findEvent).
         Doc("Get an event").
         Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
-        Returns(http.StatusOK, http.StatusText(http.StatusOK), CatEvent{}).
-        Do(Returns404, Returns500).
+        Do(ReturnsStatus(http.StatusOK, "", CatEvent{}),
+           ReturnsStatus(http.StatusNotFound, "", CatError{}),
+           ReturnsStatus(http.StatusInternalServerError, "", CatError{})).
         Writes(CatEvent{}))
 
     ws.Route(ws.POST("").To(ev.createEvent).
