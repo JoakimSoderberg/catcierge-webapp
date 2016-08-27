@@ -13,14 +13,44 @@ import (
 	"time"
 )
 
-type CatEventData struct {
+type CatEventV1Time struct {
+    time.Time
+}
+
+func (self *CatEventV1Time) UnmarshalJSON(b []byte) (err error) {
+    s := string(b)
+
+    // Get rid of the quotes "" around the value.
+    s = s[1:len(s)-1]
+
+    t, err := time.Parse(time.RFC3339Nano, s)
+
+    // The first version of the catcierge event JSON uses
+    // the wrong format for the timezone without ':' so if we
+    // fail to parse we attempt again
+    if err != nil {
+        t, err = time.Parse("2006-01-02T15:04:05.999999999Z0700", s)
+        if err != nil {
+            // This will be parsed as UTC which is incorrect...
+            // But some dates are in this format.
+            t, err = time.Parse("2006-01-02 15:04:05", s)
+            return err
+        }
+    }
+    self.Time = t
+    return
+}
+
+// TODO: Break this up into several structs instead.
+// http://attilaolah.eu/2014/09/10/json-and-struct-composition-in-go/
+type CatEventDataV1 struct {
 	ID                  string    `json:"id"`
 	EventJSONVersion    string    `json:"event_json_version"`
 	CatciergeType       string    `json:"catcierge_type"`
 	Description         string    `json:"description"`
-	Start               time.Time `json:"start"`
+	Start               CatEventV1Time `json:"start"`
 	End                 string    `json:"end"`
-	TimeGenerated       time.Time `json:"time_generated"`
+	TimeGenerated       CatEventV1Time `json:"time_generated"`
 	Timezone            string    `json:"timezone"`
 	TimezoneUtcOffset   string    `json:"timezone_utc_offset"`
 	GitHash             string    `json:"git_hash"`
@@ -40,9 +70,9 @@ type CatEventData struct {
 		Directon        string    `json:"direction"`
 		Filename        string    `json:"filename"`
 		Path            string    `json:"path"`
-		Result          int       `json:"result"`
+		Result          float32   `json:"result"`
 		Success         int       `json:"success"`
-		Time            time.Time `json:"time"`
+		Time            CatEventV1Time `json:"time"`
 		IsFalsePositive bool      `json:"is_false_positive"`
 		StepCount       int       `json:"step_count"`
 		Steps           []struct {
@@ -65,7 +95,7 @@ type CatEventData struct {
 			PreySteps     int    `json:"prey_steps"`
 		} `json:"haar_matcher"`
 		LockoutError      int    `json:"lockout_error"`
-		LockoutErrorDelay int    `json:"lockout_error_delay"`
+		LockoutErrorDelay float32 `json:"lockout_error_delay"`
 		LockoutMethod     int    `json:"lockout_method"`
 		LockoutTime       int    `json:"lockout_time"`
 		Matcher           string `json:"matcher"`
@@ -78,7 +108,7 @@ type CatEventData struct {
 type CatEvent struct {
 	ID   bson.ObjectId `json:"id" bson:"_id"`
 	Name string        `json:"name"`
-	Data CatEventData  `json:"data" bson:"data"`
+	Data CatEventDataV1  `json:"data" bson:"data"`
 	Tags []string      `json:"tags" bson:"tags"`
 }
 

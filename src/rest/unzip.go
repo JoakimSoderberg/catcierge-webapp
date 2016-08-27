@@ -63,7 +63,7 @@ func UnzipEvent(src, dest string) error {
 	// (Because some ZIP files have full paths in the zip)
 	var pathPrefix string
 	var eventName string
-	var data CatEventData
+	var data CatEventDataV1 // TODO: Change to pares header only first
 
 	for _, f := range r.File {
 		if filepath.Ext(f.Name) == ".json" {
@@ -84,12 +84,11 @@ func UnzipEvent(src, dest string) error {
 			defer rc.Close()
 
 			// TODO: Fails on unmarshalling the dates
-			/*
 			err = json.NewDecoder(rc).Decode(&data)
 			if err != nil {
-				log.Printf("Failed to decode event JSON %s", err)
+				log.Printf("Failed to decode event JSON: %s", err)
 				return err
-			}*/
+			}
 
 			break
 		}
