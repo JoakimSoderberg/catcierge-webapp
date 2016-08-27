@@ -8,8 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
+//	"path/filepath"
+//	"strings"
 	"time"
 )
 
@@ -164,6 +164,8 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 		return
 	}
 
+    log.Printf("ZIP file size = %+v\n", len(content))
+
 	if _, err := tmpfile.Write(content); err != nil {
 		log.Printf("Failed to write to tmpfile %v", tmpfile.Name())
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
@@ -175,11 +177,8 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 	}
 
 	// Unzip the file to the output directory.
-	tmpfileNoExt := strings.TrimSuffix(tmpfile.Name(), filepath.Ext(tmpfile.Name()))
-	destDir := filepath.Join(*unzipPath, tmpfileNoExt)
-
-	if err := Unzip(tmpfile.Name(), destDir); err != nil {
-		log.Printf("Failed to unzip file %v to %v", tmpfile.Name(), destDir)
+	if err := UnzipEvent(tmpfile.Name(), *unzipPath); err != nil {
+		log.Printf("Failed to unzip file %v to %v: %s", tmpfile.Name(), *unzipPath, err)
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
