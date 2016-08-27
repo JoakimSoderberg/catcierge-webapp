@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 )
 
+// TODO: Change to take a reader
 func UnzipEvent(src, dest string) (*CatEventDataV1, error) {
 	r, err := zip.OpenReader(src)
 	if err != nil {
@@ -59,12 +60,17 @@ func UnzipEvent(src, dest string) (*CatEventDataV1, error) {
 		return nil
 	}
 
-	// Find the event JSON and set the prefix based on that.
-	// (Because some ZIP files have full paths in the zip)
 	var pathPrefix string
 	var eventName string
-	var data CatEventDataV1 // TODO: Change to pares header only first
+	var data CatEventDataV1
 
+	// TODO: Add known versions parsing
+	// TODO: Verify all files referenced in the json file exists at the correct paths.
+	// TODO: Based on content-type version  give error if what we try to parse does not match
+	// TODO: If content-type is zip, assume it is the latest version
+
+	// Find the event JSON and set the prefix based on that.
+	// (Because some ZIP files have full paths in the zip)
 	for _, f := range r.File {
 		if filepath.Ext(f.Name) == ".json" {
 			// Get the filename without extension.

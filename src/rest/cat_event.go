@@ -11,6 +11,7 @@ import (
 //	"path/filepath"
 //	"strings"
 	"time"
+    "strconv"
 )
 
 type CatEventV1Time struct {
@@ -110,12 +111,23 @@ type CatEvent struct {
 	Name string        `json:"name"`
 	Data CatEventDataV1  `json:"data" bson:"data"`
 	Tags []string      `json:"tags" bson:"tags"`
+    Missing bool       `json:"missing" bson:"missing"`
 }
 
 type CatEventResource struct {
 	// TODO: Replace with MongoDB
 	events map[string]CatEvent
 }
+
+type CatEventListResponse struct {
+    // Make these part of a more general struct that can be reused for all lists somehow
+    Count int `json:"count"`
+    Offset int `json:"offset"`
+    Limit int `json:"limit"`
+
+    Items []CatEvent `json:"items"`
+}
+// TODO: Add a new resource for listing all images.
 
 func (ev CatEventResource) Register(container *restful.Container) {
 	ws := new(restful.WebService)
@@ -126,8 +138,11 @@ func (ev CatEventResource) Register(container *restful.Container) {
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
     // TODO: Add pagination and stuff. Items should be shown under an "items" field.
+    // TODO: Make constants for default values here
 	ws.Route(ws.GET("/").To(ev.listEvents).
 		Doc("Get all events").
+        Param(ws.QueryParameter("offset", "Offset into the list").DataType("int").DefaultValue("0")).
+        Param(ws.QueryParameter("limit", "Number of items to return").DataType("int").DefaultValue("10")).
 		Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
 		Do(ReturnsError(http.StatusInternalServerError)))
 
@@ -147,8 +162,26 @@ func (ev CatEventResource) Register(container *restful.Container) {
 	container.Add(ws)
 }
 
+// TODO: Make this a more generic list function that can be reused.
 func (ev CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
-	response.WriteEntity(ev.events)
+    var l = CatEventListResponse{}
+    offset, _ := strconv.Atoi(request.QueryParameter("offset"))
+    limit, err := strconv.Atoi(request.QueryParameter("limit"))
+    if err != nil {
+        limit = 10
+    }
+
+    l.Offset = offset
+    l.Limit = limit
+    l.Items = make([]CatEvent, len(ev.events))
+
+    i := 0
+    for _, v := range ev.events {
+        l.Items[i] = v
+        i++
+    }
+
+    response.WriteEntity(l)
 }
 
 func (ev CatEventResource) getEvent(request *restful.Request, response *restful.Response) {
@@ -214,6 +247,7 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 		return
 	}
 
+    // TODO: Replace with MongoDB
     ev.events[eventData.ID] = CatEvent{ID: bson.ObjectIdHex(eventData.ID[0:24]), Data: *eventData}
 
 	response.WriteHeader(http.StatusCreated)
