@@ -10,10 +10,10 @@ import (
 	"encoding/json"
 )
 
-func UnzipEvent(src, dest string) error {
+func UnzipEvent(src, dest string) (*CatEventDataV1, error) {
 	r, err := zip.OpenReader(src)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer func() {
 		if err := r.Close(); err != nil {
@@ -78,7 +78,7 @@ func UnzipEvent(src, dest string) error {
 			rc, err := f.Open()
 			if err != nil {
 				// TODO: Return extended error message we can return in REST API.
-				return err
+				return nil, err
 			}
 
 			defer rc.Close()
@@ -87,7 +87,7 @@ func UnzipEvent(src, dest string) error {
 			err = json.NewDecoder(rc).Decode(&data)
 			if err != nil {
 				log.Printf("Failed to decode event JSON: %s", err)
-				return err
+				return nil, err
 			}
 
 			break
@@ -99,9 +99,9 @@ func UnzipEvent(src, dest string) error {
 		f.Name = strings.TrimPrefix(f.Name, pathPrefix)
 		err := extractAndWriteFile(f)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return &data, nil
 }

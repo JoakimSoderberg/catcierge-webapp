@@ -125,6 +125,7 @@ func (ev CatEventResource) Register(container *restful.Container) {
 		Consumes(restful.MIME_XML, restful.MIME_JSON, "application/zip").
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
+    // TODO: Add pagination and stuff. Items should be shown under an "items" field.
 	ws.Route(ws.GET("/").To(ev.listEvents).
 		Doc("Get all events").
 		Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
@@ -171,7 +172,6 @@ var (
 
 // curl --verbose --header "Content-Type: application/zip" --data-binary @file.zip http://awesome
 func (ev *CatEventResource) createEvent(request *restful.Request, response *restful.Response) {
-	//sr := User{Id: request.PathParameter("event-id")}
 
 	// TODO: Check file size so it is not too big. Maybe as a filter?
 
@@ -207,11 +207,14 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 	}
 
 	// Unzip the file to the output directory.
-	if err := UnzipEvent(tmpfile.Name(), *unzipPath); err != nil {
+	eventData, err := UnzipEvent(tmpfile.Name(), *unzipPath)
+    if err != nil {
 		log.Printf("Failed to unzip file %v to %v: %s", tmpfile.Name(), *unzipPath, err)
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
+
+    ev.events[eventData.ID] = CatEvent{ID: bson.ObjectIdHex(eventData.ID[0:24]), Data: *eventData}
 
 	response.WriteHeader(http.StatusCreated)
 
