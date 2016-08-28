@@ -16,11 +16,11 @@ const (
 	DefaultPageLimit  = 10
 )
 
-type CatEventV1Time struct {
+type CatEventTimeV1 struct {
 	time.Time
 }
 
-func (self *CatEventV1Time) UnmarshalJSON(b []byte) (err error) {
+func (self *CatEventTimeV1) UnmarshalJSON(b []byte) (err error) {
 	s := string(b)
 
 	// Get rid of the quotes "" around the value.
@@ -44,68 +44,80 @@ func (self *CatEventV1Time) UnmarshalJSON(b []byte) (err error) {
 	return
 }
 
+type CatEventHeader struct {
+	ID               string `json:"id"`
+	EventJSONVersion string `json:"event_json_version"`
+	Version          string `json:"version"`
+	GitHash          string `json:"git_hash"`
+	GitHashShort     string `json:"git_hash_short"`
+	GitTainted       int    `json:"git_tainted"`
+}
+
+type CatEventHaarMatcherSettingsV1 struct {
+	Cascade       string `json:"cascade"`
+	EqHistogram   int    `json:"eq_histogram"`
+	InDirection   string `json:"in_direction"`
+	MinSizeHeight int    `json:"min_size_height"`
+	MinSizeWidth  int    `json:"min_size_width"`
+	NoMatchIsFail int    `json:"no_match_is_fail"`
+	PreyMethod    string `json:"prey_method"`
+	PreySteps     int    `json:"prey_steps"`
+}
+
+type CatEventSettingsV1 struct {
+	HaarMatcher       CatEventHaarMatcherSettingsV1 `json:"haar_matcher"`
+	LockoutError      int                           `json:"lockout_error"`
+	LockoutErrorDelay float32                       `json:"lockout_error_delay"`
+	LockoutMethod     int                           `json:"lockout_method"`
+	LockoutTime       int                           `json:"lockout_time"`
+	Matcher           string                        `json:"matcher"`
+	Matchtime         int                           `json:"matchtime"`
+	NoFinalDecision   int                           `json:"no_final_decision"`
+	OkMatchesNeeded   int                           `json:"ok_matches_needed"`
+}
+
+type CatEventMatchStepV1 struct {
+	Active      int    `json:"active"`
+	Description string `json:"description"`
+	Filename    string `json:"filename"`
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+}
+
+type CatEventMatchV1 struct {
+	ID              string                `json:"id"`
+	Description     string                `json:"description"`
+	Directon        string                `json:"direction"`
+	Filename        string                `json:"filename"`
+	Path            string                `json:"path"`
+	Result          float32               `json:"result"`
+	Success         int                   `json:"success"`
+	Time            CatEventTimeV1        `json:"time"`
+	IsFalsePositive bool                  `json:"is_false_positive"`
+	StepCount       int                   `json:"step_count"`
+	Steps           []CatEventMatchStepV1 `json:"steps"`
+}
+
 // TODO: Break this up into several structs instead.
 // http://attilaolah.eu/2014/09/10/json-and-struct-composition-in-go/
 type CatEventDataV1 struct {
-	ID                  string         `json:"id"`
-	EventJSONVersion    string         `json:"event_json_version"`
-	CatciergeType       string         `json:"catcierge_type"`
-	Description         string         `json:"description"`
-	Start               CatEventV1Time `json:"start"`
-	End                 string         `json:"end"`
-	TimeGenerated       CatEventV1Time `json:"time_generated"`
-	Timezone            string         `json:"timezone"`
-	TimezoneUtcOffset   string         `json:"timezone_utc_offset"`
-	GitHash             string         `json:"git_hash"`
-	GitHashShort        string         `json:"git_hash_short"`
-	GitTainted          int            `json:"git_tainted"`
-	MatchGroupCount     int            `json:"match_group_count"`
-	MatchGroupDirection string         `json:"match_group_direction"`
-	MatchGroupMaxCount  int            `json:"match_group_max_count"`
-	MatchGroupSuccess   int            `json:"match_group_success"`
-	Rootpath            string         `json:"rootpath"`
-	State               string         `json:"state"`
-	PrevState           string         `json:"prev_state"`
-	Version             string         `json:"version"`
-	Matches             []struct {
-		ID              string         `json:"id"`
-		Description     string         `json:"description"`
-		Directon        string         `json:"direction"`
-		Filename        string         `json:"filename"`
-		Path            string         `json:"path"`
-		Result          float32        `json:"result"`
-		Success         int            `json:"success"`
-		Time            CatEventV1Time `json:"time"`
-		IsFalsePositive bool           `json:"is_false_positive"`
-		StepCount       int            `json:"step_count"`
-		Steps           []struct {
-			Active      int    `json:"active"`
-			Description string `json:"description"`
-			Filename    string `json:"filename"`
-			Name        string `json:"name"`
-			Path        string `json:"path"`
-		} `json:"steps"`
-	} `json:"matches"`
-	Settings struct {
-		HaarMatcher struct {
-			Cascade       string `json:"cascade"`
-			EqHistogram   int    `json:"eq_histogram"`
-			InDirection   string `json:"in_direction"`
-			MinSizeHeight int    `json:"min_size_height"`
-			MinSizeWidth  int    `json:"min_size_width"`
-			NoMatchIsFail int    `json:"no_match_is_fail"`
-			PreyMethod    string `json:"prey_method"`
-			PreySteps     int    `json:"prey_steps"`
-		} `json:"haar_matcher"`
-		LockoutError      int     `json:"lockout_error"`
-		LockoutErrorDelay float32 `json:"lockout_error_delay"`
-		LockoutMethod     int     `json:"lockout_method"`
-		LockoutTime       int     `json:"lockout_time"`
-		Matcher           string  `json:"matcher"`
-		Matchtime         int     `json:"matchtime"`
-		NoFinalDecision   int     `json:"no_final_decision"`
-		OkMatchesNeeded   int     `json:"ok_matches_needed"`
-	} `json:"settings"`
+	CatEventHeader
+	State               string             `json:"state"`
+	PrevState           string             `json:"prev_state"`
+	CatciergeType       string             `json:"catcierge_type"`
+	Description         string             `json:"description"`
+	Start               CatEventTimeV1     `json:"start"`
+	End                 CatEventTimeV1     `json:"end"`
+	TimeGenerated       CatEventTimeV1     `json:"time_generated"`
+	Timezone            string             `json:"timezone"`
+	TimezoneUtcOffset   string             `json:"timezone_utc_offset"`
+	Rootpath            string             `json:"rootpath"`
+	MatchGroupCount     int                `json:"match_group_count"`
+	MatchGroupDirection string             `json:"match_group_direction"`
+	MatchGroupMaxCount  int                `json:"match_group_max_count"`
+	MatchGroupSuccess   int                `json:"match_group_success"`
+	Matches             []CatEventMatchV1  `json:"matches"`
+	Settings            CatEventSettingsV1 `json:"settings"`
 }
 
 type CatEvent struct {
