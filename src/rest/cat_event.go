@@ -124,12 +124,16 @@ type CatEventResource struct {
 	events map[string]CatEvent
 }
 
-type CatEventListResponse struct {
-	// Make these part of a more general struct that can be reused for all lists somehow
+// Used for all list resource responses to return pagination
+// and other general information.
+type ListResponseHeader struct {
 	Count  int `json:"count"`
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
+}
 
+type CatEventListResponse struct {
+	ListResponseHeader
 	Items []CatEvent `json:"items"`
 }
 
@@ -174,7 +178,7 @@ func (ev CatEventResource) listEvents(request *restful.Request, response *restfu
 	offset, _ := strconv.Atoi(request.QueryParameter("offset"))
 	limit, err := strconv.Atoi(request.QueryParameter("limit"))
 	if err != nil {
-		limit = 10
+		limit = DefaultPageLimit
 	}
 
 	l.Offset = offset
