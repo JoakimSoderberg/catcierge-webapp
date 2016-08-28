@@ -172,10 +172,14 @@ func (ev CatEventResource) Register(container *restful.Container) {
 	container.Add(ws)
 }
 
-// TODO: Make this a more generic list function that can be reused.
-func (ev CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
-	var l = CatEventListResponse{}
-	offset, _ := strconv.Atoi(request.QueryParameter("offset"))
+
+func (l ListResponseHeader) getListResponseParams(request *restful.Request) {
+	
+	offset, err := strconv.Atoi(request.QueryParameter("offset"))
+	if err != nil {
+		offset = DefaultPageOffset
+	}
+
 	limit, err := strconv.Atoi(request.QueryParameter("limit"))
 	if err != nil {
 		limit = DefaultPageLimit
@@ -183,8 +187,13 @@ func (ev CatEventResource) listEvents(request *restful.Request, response *restfu
 
 	l.Offset = offset
 	l.Limit = limit
-	l.Items = make([]CatEvent, len(ev.events))
+}
 
+func (ev CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
+	var l = CatEventListResponse{}
+	l.getListResponseParams(request)
+
+	l.Items = make([]CatEvent, len(ev.events))
 	i := 0
 	for _, v := range ev.events {
 		l.Items[i] = v
