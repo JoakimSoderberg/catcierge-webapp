@@ -14,6 +14,11 @@ import (
 	"time"
 )
 
+const (
+	DefaultPageOffset = 0
+	DefaultPageLimit = 10
+)
+
 type CatEventV1Time struct {
 	time.Time
 }
