@@ -8,15 +8,12 @@ import (
 	"log"
 	"net/http"
 	"os"
-	//	"path/filepath"
-	//	"strings"
-	"strconv"
 	"time"
 )
 
 const (
 	DefaultPageOffset = 0
-	DefaultPageLimit = 10
+	DefaultPageLimit  = 10
 )
 
 type CatEventV1Time struct {
@@ -124,14 +121,6 @@ type CatEventResource struct {
 	events map[string]CatEvent
 }
 
-// Used for all list resource responses to return pagination
-// and other general information.
-type ListResponseHeader struct {
-	Count  int `json:"count"`
-	Offset int `json:"offset"`
-	Limit  int `json:"limit"`
-}
-
 type CatEventListResponse struct {
 	ListResponseHeader
 	Items []CatEvent `json:"items"`
@@ -151,10 +140,9 @@ func (ev CatEventResource) Register(container *restful.Container) {
 		// TODO: Make constants for default values here
 	ws.Route(ws.GET("/").To(ev.listEvents).
 		Doc("Get all events").
-		Param(ws.QueryParameter("offset", "Offset into the list").DataType("int").DefaultValue("0")).
-		Param(ws.QueryParameter("limit", "Number of items to return").DataType("int").DefaultValue("10")).
 		Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
-		Do(ReturnsError(http.StatusInternalServerError)))
+		Do(AddListResponseParams(ws),
+			ReturnsError(http.StatusInternalServerError)))
 
 	ws.Route(ws.GET("/{event-id}").To(ev.getEvent).
 		Doc("Get an event").
@@ -172,23 +160,6 @@ func (ev CatEventResource) Register(container *restful.Container) {
 	container.Add(ws)
 }
 
-
-func (l ListResponseHeader) getListResponseParams(request *restful.Request) {
-	
-	offset, err := strconv.Atoi(request.QueryParameter("offset"))
-	if err != nil {
-		offset = DefaultPageOffset
-	}
-
-	limit, err := strconv.Atoi(request.QueryParameter("limit"))
-	if err != nil {
-		limit = DefaultPageLimit
-	}
-
-	l.Offset = offset
-	l.Limit = limit
-}
-
 func (ev CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
 	var l = CatEventListResponse{}
 	l.getListResponseParams(request)
@@ -199,6 +170,8 @@ func (ev CatEventResource) listEvents(request *restful.Request, response *restfu
 		l.Items[i] = v
 		i++
 	}
+
+	l.Count = len(l.Items)
 
 	response.WriteEntity(l)
 }
