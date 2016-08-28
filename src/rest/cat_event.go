@@ -8,74 +8,74 @@ import (
 	"log"
 	"net/http"
 	"os"
-//	"path/filepath"
-//	"strings"
+	//	"path/filepath"
+	//	"strings"
+	"strconv"
 	"time"
-    "strconv"
 )
 
 type CatEventV1Time struct {
-    time.Time
+	time.Time
 }
 
 func (self *CatEventV1Time) UnmarshalJSON(b []byte) (err error) {
-    s := string(b)
+	s := string(b)
 
-    // Get rid of the quotes "" around the value.
-    s = s[1:len(s)-1]
+	// Get rid of the quotes "" around the value.
+	s = s[1 : len(s)-1]
 
-    t, err := time.Parse(time.RFC3339Nano, s)
+	t, err := time.Parse(time.RFC3339Nano, s)
 
-    // The first version of the catcierge event JSON uses
-    // the wrong format for the timezone without ':' so if we
-    // fail to parse we attempt again
-    if err != nil {
-        t, err = time.Parse("2006-01-02T15:04:05.999999999Z0700", s)
-        if err != nil {
-            // This will be parsed as UTC which is incorrect...
-            // But some dates are in this format.
-            t, err = time.Parse("2006-01-02 15:04:05", s)
-            return err
-        }
-    }
-    self.Time = t
-    return
+	// The first version of the catcierge event JSON uses
+	// the wrong format for the timezone without ':' so if we
+	// fail to parse we attempt again
+	if err != nil {
+		t, err = time.Parse("2006-01-02T15:04:05.999999999Z0700", s)
+		if err != nil {
+			// This will be parsed as UTC which is incorrect...
+			// But some dates are in this format.
+			t, err = time.Parse("2006-01-02 15:04:05", s)
+			return err
+		}
+	}
+	self.Time = t
+	return
 }
 
 // TODO: Break this up into several structs instead.
 // http://attilaolah.eu/2014/09/10/json-and-struct-composition-in-go/
 type CatEventDataV1 struct {
-	ID                  string    `json:"id"`
-	EventJSONVersion    string    `json:"event_json_version"`
-	CatciergeType       string    `json:"catcierge_type"`
-	Description         string    `json:"description"`
+	ID                  string         `json:"id"`
+	EventJSONVersion    string         `json:"event_json_version"`
+	CatciergeType       string         `json:"catcierge_type"`
+	Description         string         `json:"description"`
 	Start               CatEventV1Time `json:"start"`
-	End                 string    `json:"end"`
+	End                 string         `json:"end"`
 	TimeGenerated       CatEventV1Time `json:"time_generated"`
-	Timezone            string    `json:"timezone"`
-	TimezoneUtcOffset   string    `json:"timezone_utc_offset"`
-	GitHash             string    `json:"git_hash"`
-	GitHashShort        string    `json:"git_hash_short"`
-	GitTainted          int       `json:"git_tainted"`
-	MatchGroupCount     int       `json:"match_group_count"`
-	MatchGroupDirection string    `json:"match_group_direction"`
-	MatchGroupMaxCount  int       `json:"match_group_max_count"`
-	MatchGroupSuccess   int       `json:"match_group_success"`
-	Rootpath            string    `json:"rootpath"`
-	State               string    `json:"state"`
-	PrevState           string    `json:"prev_state"`
-	Version             string    `json:"version"`
+	Timezone            string         `json:"timezone"`
+	TimezoneUtcOffset   string         `json:"timezone_utc_offset"`
+	GitHash             string         `json:"git_hash"`
+	GitHashShort        string         `json:"git_hash_short"`
+	GitTainted          int            `json:"git_tainted"`
+	MatchGroupCount     int            `json:"match_group_count"`
+	MatchGroupDirection string         `json:"match_group_direction"`
+	MatchGroupMaxCount  int            `json:"match_group_max_count"`
+	MatchGroupSuccess   int            `json:"match_group_success"`
+	Rootpath            string         `json:"rootpath"`
+	State               string         `json:"state"`
+	PrevState           string         `json:"prev_state"`
+	Version             string         `json:"version"`
 	Matches             []struct {
-		ID              string    `json:"id"`
-		Description     string    `json:"description"`
-		Directon        string    `json:"direction"`
-		Filename        string    `json:"filename"`
-		Path            string    `json:"path"`
-		Result          float32   `json:"result"`
-		Success         int       `json:"success"`
+		ID              string         `json:"id"`
+		Description     string         `json:"description"`
+		Directon        string         `json:"direction"`
+		Filename        string         `json:"filename"`
+		Path            string         `json:"path"`
+		Result          float32        `json:"result"`
+		Success         int            `json:"success"`
 		Time            CatEventV1Time `json:"time"`
-		IsFalsePositive bool      `json:"is_false_positive"`
-		StepCount       int       `json:"step_count"`
+		IsFalsePositive bool           `json:"is_false_positive"`
+		StepCount       int            `json:"step_count"`
 		Steps           []struct {
 			Active      int    `json:"active"`
 			Description string `json:"description"`
@@ -95,23 +95,23 @@ type CatEventDataV1 struct {
 			PreyMethod    string `json:"prey_method"`
 			PreySteps     int    `json:"prey_steps"`
 		} `json:"haar_matcher"`
-		LockoutError      int    `json:"lockout_error"`
+		LockoutError      int     `json:"lockout_error"`
 		LockoutErrorDelay float32 `json:"lockout_error_delay"`
-		LockoutMethod     int    `json:"lockout_method"`
-		LockoutTime       int    `json:"lockout_time"`
-		Matcher           string `json:"matcher"`
-		Matchtime         int    `json:"matchtime"`
-		NoFinalDecision   int    `json:"no_final_decision"`
-		OkMatchesNeeded   int    `json:"ok_matches_needed"`
+		LockoutMethod     int     `json:"lockout_method"`
+		LockoutTime       int     `json:"lockout_time"`
+		Matcher           string  `json:"matcher"`
+		Matchtime         int     `json:"matchtime"`
+		NoFinalDecision   int     `json:"no_final_decision"`
+		OkMatchesNeeded   int     `json:"ok_matches_needed"`
 	} `json:"settings"`
 }
 
 type CatEvent struct {
-	ID   bson.ObjectId `json:"id" bson:"_id"`
-	Name string        `json:"name"`
-	Data CatEventDataV1  `json:"data" bson:"data"`
-	Tags []string      `json:"tags" bson:"tags"`
-    Missing bool       `json:"missing" bson:"missing"`
+	ID      bson.ObjectId  `json:"id" bson:"_id"`
+	Name    string         `json:"name" bson:"name"`
+	Data    CatEventDataV1 `json:"data" bson:"data"`
+	Tags    []string       `json:"tags" bson:"tags"`
+	Missing bool           `json:"missing" bson:"missing"`
 }
 
 type CatEventResource struct {
@@ -120,13 +120,14 @@ type CatEventResource struct {
 }
 
 type CatEventListResponse struct {
-    // Make these part of a more general struct that can be reused for all lists somehow
-    Count int `json:"count"`
-    Offset int `json:"offset"`
-    Limit int `json:"limit"`
+	// Make these part of a more general struct that can be reused for all lists somehow
+	Count  int `json:"count"`
+	Offset int `json:"offset"`
+	Limit  int `json:"limit"`
 
-    Items []CatEvent `json:"items"`
+	Items []CatEvent `json:"items"`
 }
+
 // TODO: Add a new resource for listing all images.
 
 func (ev CatEventResource) Register(container *restful.Container) {
@@ -137,12 +138,12 @@ func (ev CatEventResource) Register(container *restful.Container) {
 		Consumes(restful.MIME_XML, restful.MIME_JSON, "application/zip").
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
-    // TODO: Add pagination and stuff. Items should be shown under an "items" field.
-    // TODO: Make constants for default values here
+		// TODO: Add pagination and stuff. Items should be shown under an "items" field.
+		// TODO: Make constants for default values here
 	ws.Route(ws.GET("/").To(ev.listEvents).
 		Doc("Get all events").
-        Param(ws.QueryParameter("offset", "Offset into the list").DataType("int").DefaultValue("0")).
-        Param(ws.QueryParameter("limit", "Number of items to return").DataType("int").DefaultValue("10")).
+		Param(ws.QueryParameter("offset", "Offset into the list").DataType("int").DefaultValue("0")).
+		Param(ws.QueryParameter("limit", "Number of items to return").DataType("int").DefaultValue("10")).
 		Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
 		Do(ReturnsError(http.StatusInternalServerError)))
 
@@ -164,24 +165,24 @@ func (ev CatEventResource) Register(container *restful.Container) {
 
 // TODO: Make this a more generic list function that can be reused.
 func (ev CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
-    var l = CatEventListResponse{}
-    offset, _ := strconv.Atoi(request.QueryParameter("offset"))
-    limit, err := strconv.Atoi(request.QueryParameter("limit"))
-    if err != nil {
-        limit = 10
-    }
+	var l = CatEventListResponse{}
+	offset, _ := strconv.Atoi(request.QueryParameter("offset"))
+	limit, err := strconv.Atoi(request.QueryParameter("limit"))
+	if err != nil {
+		limit = 10
+	}
 
-    l.Offset = offset
-    l.Limit = limit
-    l.Items = make([]CatEvent, len(ev.events))
+	l.Offset = offset
+	l.Limit = limit
+	l.Items = make([]CatEvent, len(ev.events))
 
-    i := 0
-    for _, v := range ev.events {
-        l.Items[i] = v
-        i++
-    }
+	i := 0
+	for _, v := range ev.events {
+		l.Items[i] = v
+		i++
+	}
 
-    response.WriteEntity(l)
+	response.WriteEntity(l)
 }
 
 func (ev CatEventResource) getEvent(request *restful.Request, response *restful.Response) {
@@ -213,7 +214,7 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 	// Save the ZIP on the filesystem temporarily.
 	tmpfile, err := ioutil.TempFile("/tmp/", "event")
 	if err != nil {
-		log.Printf("Failed to get temp file name")
+		log.Printf("Failed to create temp file for unzipping: %s", err)
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
@@ -222,15 +223,15 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 
 	content, err := ioutil.ReadAll(request.Request.Body)
 	if err != nil {
-		log.Printf("Failed to read body\n")
+		log.Printf("Failed to read body: %s\n", err)
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
 
-    log.Printf("ZIP file size = %+v\n", len(content))
+	log.Printf("ZIP file size = %+v\n", len(content))
 
 	if _, err := tmpfile.Write(content); err != nil {
-		log.Printf("Failed to write to tmpfile %v", tmpfile.Name())
+		log.Printf("Failed to write to tmpfile %v: %s", tmpfile.Name(), err)
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
@@ -241,14 +242,14 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 
 	// Unzip the file to the output directory.
 	eventData, err := UnzipEvent(tmpfile.Name(), *unzipPath)
-    if err != nil {
+	if err != nil {
 		log.Printf("Failed to unzip file %v to %v: %s", tmpfile.Name(), *unzipPath, err)
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
 
-    // TODO: Replace with MongoDB
-    ev.events[eventData.ID] = CatEvent{ID: bson.ObjectIdHex(eventData.ID[0:24]), Data: *eventData}
+	// TODO: Replace with MongoDB
+	ev.events[eventData.ID] = CatEvent{ID: bson.ObjectIdHex(eventData.ID[0:24]), Data: *eventData}
 
 	response.WriteHeader(http.StatusCreated)
 

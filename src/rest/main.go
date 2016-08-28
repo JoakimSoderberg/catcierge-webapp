@@ -45,8 +45,10 @@ func main() {
 
 	// TODO: Replace with mongodb
 	cr := CatEventResource{events: map[string]CatEvent{}}
-
 	cr.Register(wsContainer)
+
+	// TODO: Add support for getting JSON schemas for everything.
+	// TODO: Add heartbeat support, so we can notif if catcierge is down
 
 	// Swagger documentation.
 	config := swagger.Config{

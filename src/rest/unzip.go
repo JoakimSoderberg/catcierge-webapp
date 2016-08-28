@@ -2,12 +2,12 @@ package main
 
 import (
 	"archive/zip"
+	"encoding/json"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
-	"log"
 	"strings"
-	"encoding/json"
 )
 
 // TODO: Change to take a reader
