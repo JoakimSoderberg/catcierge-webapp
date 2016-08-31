@@ -34,7 +34,13 @@ var (
 	swaggerFileName = app.Flag("swagger-file", "Name of the swagger JSON file hosted under 'swagger-path'").
 			Default("swagger.json").
 			String()
+	useSSL = app.Flag("ssl", "Run the server in HTTPS").Bool()
+	sslCert = app.Flag("ssl-cert", "Path to the SSL cert").String()
+	sslKey = app.Flag("ssl-key", "Path to the SSL key file").String()
 )
+
+var server *http.Server
+var serverScheme string
 
 func main() {
 
@@ -68,6 +74,14 @@ func main() {
 	swagger.RegisterSwaggerService(config, wsContainer)
 
 	log.Printf("Start listening on port %v", *port)
-	server := &http.Server{Addr: fmt.Sprintf(":%v", *port), Handler: wsContainer}
-	log.Fatal(server.ListenAndServe())
+	server = &http.Server{Addr: fmt.Sprintf(":%v", *port), Handler: wsContainer}
+
+	if (*useSSL) {
+		log.Printf("Using SSL")
+		serverScheme = "https"
+		log.Fatal(server.ListenAndServeTLS(*sslCert, *sslKey))
+	} else {
+		serverScheme = "http"
+		log.Fatal(server.ListenAndServe())
+	}
 }

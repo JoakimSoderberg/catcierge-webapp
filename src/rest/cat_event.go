@@ -7,13 +7,23 @@ import (
 	"labix.org/v2/mgo/bson"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
+	"path"
+	"strings"
 )
 
 const (
 	DefaultPageOffset = 0
 	DefaultPageLimit  = 10
+)
+
+var (
+	eventPath = app.Flag("event-path", "Unzip the uploaded event files in this path.").
+		Short('u').
+		Default("/go/src/app/events/").
+		String()
 )
 
 type CatEventTimeV1 struct {
@@ -82,6 +92,7 @@ type CatEventMatchStepV1 struct {
 	Filename    string `json:"filename"`
 	Name        string `json:"name"`
 	Path        string `json:"path"`
+	Ref 		string `json:"ref",omitempty`
 }
 
 type CatEventMatchV1 struct {
@@ -90,6 +101,7 @@ type CatEventMatchV1 struct {
 	Directon        string                `json:"direction"`
 	Filename        string                `json:"filename"`
 	Path            string                `json:"path"`
+	Ref 			string                `json:"ref",omitempty`
 	Result          float32               `json:"result"`
 	Success         int                   `json:"success"`
 	Time            CatEventTimeV1        `json:"time"`
@@ -145,16 +157,15 @@ func (ev CatEventResource) Register(container *restful.Container) {
 
 	ws.Path("/events").
 		Doc("Manage events").
-		Consumes(restful.MIME_XML, restful.MIME_JSON, "application/zip").
+		Consumes("application/zip").
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
-		// TODO: Add pagination and stuff. Items should be shown under an "items" field.
-		// TODO: Make constants for default values here
 	ws.Route(ws.GET("/").To(ev.listEvents).
 		Doc("Get all events").
 		Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
 		Do(AddListResponseParams(ws),
-			ReturnsError(http.StatusInternalServerError)))
+			ReturnsError(http.StatusInternalServerError)).
+		Writes(CatEventListResponse{}))
 
 	ws.Route(ws.GET("/{event-id}").To(ev.getEvent).
 		Doc("Get an event").
@@ -164,6 +175,17 @@ func (ev CatEventResource) Register(container *restful.Container) {
 			ReturnsError(http.StatusInternalServerError)).
 		Writes(CatEvent{}))
 
+	// This should point to the static images dir
+	/*
+	ws.Route(ws.GET("/{event-id}/images").To(ev.getEvent).
+		Doc("Get an event").
+		Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
+		Do(ReturnsStatus(http.StatusOK, "", CatEvent{}),
+			ReturnsError(http.StatusNotFound),
+			ReturnsError(http.StatusInternalServerError)).
+		Writes(CatEvent{}))
+	*/
+
 	ws.Route(ws.POST("").To(ev.createEvent).
 		Doc("Create an event based on an event ZIP file").
 		Do(ReturnsError(http.StatusBadRequest),
@@ -172,14 +194,35 @@ func (ev CatEventResource) Register(container *restful.Container) {
 	container.Add(ws)
 }
 
+func ReverseUrl(request *http.Request, fullPath string) string {
+	revUrl := url.URL{Host: request.Host, Path: strings.Trim(fullPath, "/"), Scheme: serverScheme}
+
+	return revUrl.String()
+}
+
 func (ev CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
 	var l = CatEventListResponse{}
 	l.getListResponseParams(request)
 
+	// TODO: Replace with MongoDB query
 	l.Items = make([]CatEvent, len(ev.events))
+
 	i := 0
-	for _, v := range ev.events {
-		l.Items[i] = v
+	for k := range ev.events {
+		v := ev.events[k]
+		c := &v.Data
+		for mi := range c.Matches {
+			// TODO: Make generic function
+			m := &c.Matches[mi]
+			m.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), c.ID, m.Path))
+
+			for si := range m.Steps {
+				s := &m.Steps[si]
+				s.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), c.ID, s.Path))
+			}
+		}
+
+		l.Items[i] = ev.events[k]
 		i++
 	}
 
@@ -199,13 +242,6 @@ func (ev CatEventResource) getEvent(request *restful.Request, response *restful.
 
 	response.WriteEntity(event)
 }
-
-var (
-	unzipPath = app.Flag("unzip-path", "Unzip the uploaded event files in this path.").
-		Short('u').
-		Default("/go/src/app/events/").
-		String()
-)
 
 // curl --verbose --header "Content-Type: application/zip" --data-binary @file.zip http://awesome
 func (ev *CatEventResource) createEvent(request *restful.Request, response *restful.Response) {
@@ -244,9 +280,9 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 	}
 
 	// Unzip the file to the output directory.
-	eventData, err := UnzipEvent(tmpfile.Name(), *unzipPath)
+	eventData, err := UnzipEvent(tmpfile.Name(), *eventPath)
 	if err != nil {
-		log.Printf("Failed to unzip file %v to %v: %s", tmpfile.Name(), *unzipPath, err)
+		log.Printf("Failed to unzip file %v to %v: %s", tmpfile.Name(), *eventPath, err)
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
