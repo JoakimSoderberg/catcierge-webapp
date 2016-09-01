@@ -110,8 +110,6 @@ type CatEventMatchV1 struct {
 	Steps           []CatEventMatchStepV1 `json:"steps"`
 }
 
-// TODO: Break this up into several structs instead.
-// http://attilaolah.eu/2014/09/10/json-and-struct-composition-in-go/
 type CatEventDataV1 struct {
 	CatEventHeader
 	State               string             `json:"state"`
@@ -175,16 +173,13 @@ func (ev CatEventResource) Register(container *restful.Container) {
 			ReturnsError(http.StatusInternalServerError)).
 		Writes(CatEvent{}))
 
-	// This should point to the static images dir
-	/*
-	ws.Route(ws.GET("/{event-id}/images").To(ev.getEvent).
-		Doc("Get an event").
+	// Static images.
+	ws.Route(ws.GET("/{event-id}/{subpath:*}").To(eventStaticFiles).
+		Doc("Get static files for an event such as images").
 		Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
 		Do(ReturnsStatus(http.StatusOK, "", CatEvent{}),
 			ReturnsError(http.StatusNotFound),
-			ReturnsError(http.StatusInternalServerError)).
-		Writes(CatEvent{}))
-	*/
+			ReturnsError(http.StatusInternalServerError)))
 
 	ws.Route(ws.POST("").To(ev.createEvent).
 		Doc("Create an event based on an event ZIP file").
@@ -192,6 +187,12 @@ func (ev CatEventResource) Register(container *restful.Container) {
 			ReturnsError(http.StatusInternalServerError)))
 
 	container.Add(ws)
+}
+
+func eventStaticFiles(req *restful.Request, resp *restful.Response) {
+	fullPath := path.Join(*eventPath, req.PathParameter("event-id"), req.PathParameter("subpath"))
+	log.Printf("GET %s", fullPath)
+	http.ServeFile(resp.ResponseWriter, req.Request, fullPath)
 }
 
 func ReverseUrl(request *http.Request, fullPath string) string {
@@ -214,11 +215,11 @@ func (ev CatEventResource) listEvents(request *restful.Request, response *restfu
 		for mi := range c.Matches {
 			// TODO: Make generic function
 			m := &c.Matches[mi]
-			m.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), c.ID, m.Path))
+			m.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), m.Path))
 
 			for si := range m.Steps {
 				s := &m.Steps[si]
-				s.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), c.ID, s.Path))
+				s.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), s.Path))
 			}
 		}
 
