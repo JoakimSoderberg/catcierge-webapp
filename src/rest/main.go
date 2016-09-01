@@ -37,6 +37,7 @@ var (
 	useSSL = app.Flag("ssl", "Run the server in HTTPS").Bool()
 	sslCert = app.Flag("ssl-cert", "Path to the SSL cert").String()
 	sslKey = app.Flag("ssl-key", "Path to the SSL key file").String()
+	mongoUrl = app.Flag("mongo-url", "Url to MongoDB instance. mongodb://host:port").Default("mongodb://localhost").OverrideDefaultFromEnvar("MONGO_URL").String()
 )
 
 var server *http.Server
@@ -45,12 +46,11 @@ var serverScheme string
 func main() {
 
 	app.HelpFlag.Short('h')
-	app.Parse(os.Args[1:])
+	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	wsContainer := restful.NewContainer()
 
-	// TODO: Replace with mongodb
-	cr := CatEventResource{events: map[string]CatEvent{}}
+	cr := NewCatEventResource(DialMongo(*mongoUrl))
 	cr.Register(wsContainer)
 
 	// TODO: Add support for getting JSON schemas for everything.
