@@ -1,12 +1,12 @@
 version: '2'
 services:
   rest:
-    build: ./rest
+    build: ./rest/src
     ports:
      - "8080:8080"
      - "5000:5000"
     volumes:
-     - ./rest:/go/src/app
+     - ./rest/src:/go/src/app
     depends_on:
      - mongo
     environment:
