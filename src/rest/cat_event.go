@@ -7,11 +7,9 @@ import (
 	"labix.org/v2/mgo/bson"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 	"path"
-	"strings"
 	"labix.org/v2/mgo"
 )
 
@@ -139,6 +137,19 @@ type CatEvent struct {
 	Missing bool           `json:"missing" bson:"missing"`
 }
 
+func (c *CatEvent) FillResponse(request *restful.Request) {
+	d := &c.Data
+	for mi := range d.Matches {
+		m := &d.Matches[mi]
+		m.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), m.Path))
+
+		for si := range m.Steps {
+			s := &m.Steps[si]
+			s.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), s.Path))
+		}
+	}
+}
+
 type CatEventResource struct {
 	// MongoDB session.
 	session *mgo.Session
@@ -212,57 +223,36 @@ func eventStaticFiles(req *restful.Request, resp *restful.Response) {
 	http.ServeFile(resp.ResponseWriter, req.Request, fullPath)
 }
 
-func ReverseUrl(request *http.Request, fullPath string) string {
-	revUrl := url.URL{Host: request.Host, Path: strings.Trim(fullPath, "/"), Scheme: serverScheme}
-	return revUrl.String()
-}
-
+//
+// List events. Supports pagination.
+//
 func (ev CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
 	var l = CatEventListResponse{}
 	l.getListResponseParams(request)
 
-	/*
-	// TODO: Replace with MongoDB query
-	l.Items = make([]CatEvent, len(ev.events))
-
-	i := 0
-	for k := range ev.events {
-		v := ev.events[k]
-		c := &v.Data
-		for mi := range c.Matches {
-			// TODO: Make generic function
-			m := &c.Matches[mi]
-			m.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), m.Path))
-
-			for si := range m.Steps {
-				s := &m.Steps[si]
-				s.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), s.Path))
-			}
-		}
-
-		l.Items[i] = ev.events[k]
-		i++
-	}
-	*/
 	count, err := ev.session.DB("catcierge").C("events").Count()
 	if err != nil {
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, fmt.Sprintf("Failed to get event count"))
 	}
 	l.Count = count
 
-	err = ev.session.DB("catcierge").C("events").Find(nil).Skip(l.Offset).Limit(l.Limit).All(&l.Items)
+	err = ev.session.DB("catcierge").C("events").Find(nil).Skip(l.Offset).Limit(l.Limit).Sort("start").All(&l.Items)
 	if err != nil {
 		log.Printf("Failed to list items: %s", err)
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, fmt.Sprintf("Failed to list events"))
 		return
 	}
 
+	for i := range l.Items {
+		l.Items[i].FillResponse(request)
+	}
+
 	response.WriteEntity(l)
 }
 
+// Gets a single event.
 func (ev CatEventResource) getEvent(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("event-id")
-	//vent, ok := ev.events[id]
 	oid := bson.ObjectIdHex(id[0:24])
 	catEvent := CatEvent{}
 
@@ -320,9 +310,13 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 
 	// Create the event in MongoDB.
 	catEvent := CatEvent{ID: bson.ObjectIdHex(eventData.ID[0:24]), Data: *eventData}
-	ev.session.DB("catcierge").C("events").Insert(catEvent)
+
+	if err := ev.session.DB("catcierge").C("events").Insert(catEvent); err != nil {
+		log.Printf("Failed to insert event in database: %s", catEvent)
+	}
 
 	response.WriteHeader(http.StatusCreated)
+	catEvent.FillResponse(request)
 	response.WriteEntity(catEvent) // TODO: Should return with Ref links.
 
 	log.Printf("Successfully unpacked event\n")

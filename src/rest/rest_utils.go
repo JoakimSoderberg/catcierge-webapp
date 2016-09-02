@@ -4,6 +4,8 @@ import (
 	"github.com/emicklei/go-restful"
 	"net/http"
 	"strconv"
+    "strings"
+    "net/url"
 )
 
 type CatError struct {
@@ -18,6 +20,11 @@ type ListResponseHeader struct {
 	Count  int `json:"count"`
 	Offset int `json:"offset"`
 	Limit  int `json:"limit"`
+}
+
+func ReverseUrl(request *http.Request, fullPath string) string {
+    revUrl := url.URL{Host: request.Host, Path: strings.Trim(fullPath, "/"), Scheme: serverScheme}
+    return revUrl.String()
 }
 
 func (l ListResponseHeader) getListResponseParams(request *restful.Request) {
@@ -39,7 +46,7 @@ func (l ListResponseHeader) getListResponseParams(request *restful.Request) {
 func AddListResponseParams(ws *restful.WebService) func(b *restful.RouteBuilder) {
 	return func(b *restful.RouteBuilder) {
 		b.Param(ws.QueryParameter("offset", "Offset into the list").DataType("int").DefaultValue(string(DefaultPageOffset))).
-			Param(ws.QueryParameter("limit", "Number of items to return").DataType("int").DefaultValue(string(DefaultPageLimit)))
+		  Param(ws.QueryParameter("limit", "Number of items to return").DataType("int").DefaultValue(string(DefaultPageLimit)))
 	}
 }
 
