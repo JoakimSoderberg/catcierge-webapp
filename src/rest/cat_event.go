@@ -313,6 +313,8 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 
 	if err := ev.session.DB("catcierge").C("events").Insert(catEvent); err != nil {
 		log.Printf("Failed to insert event in database: %s", catEvent)
+		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
+		return
 	}
 
 	response.WriteHeader(http.StatusCreated)
