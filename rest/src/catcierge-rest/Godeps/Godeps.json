@@ -44,11 +44,6 @@
 			"ImportPath": "labix.org/v2/mgo/bson",
 			"Comment": "287",
 			"Rev": "gustavo@niemeyer.net-20140501184651-975yyw9ipld92pji"
-		},
-		{
-			"ImportPath": "labix.org/v2/mgo/sasl",
-			"Comment": "287",
-			"Rev": "gustavo@niemeyer.net-20140501184651-975yyw9ipld92pji"
 		}
 	]
 }
