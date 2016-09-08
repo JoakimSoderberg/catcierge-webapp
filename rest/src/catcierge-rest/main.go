@@ -12,12 +12,12 @@ import (
 )
 
 var (
-	DEFAULT_PORT = "8080"
-	app          = kingpin.New(os.Args[0], "A REST API Server for the Catcierge project.")
-	port         = app.Flag("port", "Listen port for the web server.").
+	DefaultPort = "8080"
+	app         = kingpin.New(os.Args[0], "A REST API Server for the Catcierge project.")
+	port        = app.Flag("port", "Listen port for the web server.").
 			Short('p').
-			Default(DEFAULT_PORT).
-			HintOptions("80", "443", DEFAULT_PORT).
+			Default(DefaultPort).
+			HintOptions("80", "443", DefaultPort).
 			Int()
 	swaggerUrl = app.Flag("swagger-url", "(Optional) URL to an external swagger documentation browser service. Use this if you don't want to self host Swagger UI using --no-host-swagger-ui").
 			PlaceHolder("URL").
@@ -34,9 +34,9 @@ var (
 	swaggerFileName = app.Flag("swagger-file", "Name of the swagger JSON file hosted under 'swagger-path'").
 			Default("swagger.json").
 			String()
-	useSSL = app.Flag("ssl", "Run the server in HTTPS").Bool()
-	sslCert = app.Flag("ssl-cert", "Path to the SSL cert").String()
-	sslKey = app.Flag("ssl-key", "Path to the SSL key file").String()
+	useSSL   = app.Flag("ssl", "Run the server in HTTPS").Bool()
+	sslCert  = app.Flag("ssl-cert", "Path to the SSL cert").String()
+	sslKey   = app.Flag("ssl-key", "Path to the SSL key file").String()
 	mongoUrl = app.Flag("mongo-url", "Url to MongoDB instance. mongodb://host:port").Default("mongodb://localhost").OverrideDefaultFromEnvar("MONGO_URL").String()
 )
 
@@ -76,7 +76,7 @@ func main() {
 	log.Printf("Start listening on port %v", *port)
 	server = &http.Server{Addr: fmt.Sprintf(":%v", *port), Handler: wsContainer}
 
-	if (*useSSL) {
+	if *useSSL {
 		log.Printf("Using SSL")
 		serverScheme = "https"
 		log.Fatal(server.ListenAndServeTLS(*sslCert, *sslKey))

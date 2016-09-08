@@ -1,16 +1,17 @@
 package main
 
 import (
-	"github.com/emicklei/go-restful"
 	"net/http"
+	"net/url"
 	"strconv"
-    "strings"
-    "net/url"
+	"strings"
+
+	"github.com/emicklei/go-restful"
 )
 
 type CatError struct {
-	HttpStatusCode int    `json:"http_status_code"`
-	HttpStatus     string `json:"http_status"`
+	HTTPStatusCode int    `json:"http_status_code"`
+	HTTPStatus     string `json:"http_status"`
 	Message        string `json:"message"`
 }
 
@@ -23,8 +24,8 @@ type ListResponseHeader struct {
 }
 
 func ReverseUrl(request *http.Request, fullPath string) string {
-    revUrl := url.URL{Host: request.Host, Path: strings.Trim(fullPath, "/"), Scheme: serverScheme}
-    return revUrl.String()
+	revUrl := url.URL{Host: request.Host, Path: strings.Trim(fullPath, "/"), Scheme: serverScheme}
+	return revUrl.String()
 }
 
 func (l ListResponseHeader) getListResponseParams(request *restful.Request) {
@@ -46,7 +47,7 @@ func (l ListResponseHeader) getListResponseParams(request *restful.Request) {
 func AddListResponseParams(ws *restful.WebService) func(b *restful.RouteBuilder) {
 	return func(b *restful.RouteBuilder) {
 		b.Param(ws.QueryParameter("offset", "Offset into the list").DataType("int").DefaultValue(string(DefaultPageOffset))).
-		  Param(ws.QueryParameter("limit", "Number of items to return").DataType("int").DefaultValue(string(DefaultPageLimit)))
+			Param(ws.QueryParameter("limit", "Number of items to return").DataType("int").DefaultValue(string(DefaultPageLimit)))
 	}
 }
 
@@ -55,8 +56,9 @@ func WriteCatciergeErrorString(response *restful.Response, httpStatus int, messa
 		message = http.StatusText(httpStatus)
 	}
 
+	response.WriteHeader(httpStatus)
 	response.AddHeader("Content-Type", "application/json")
-	response.WriteEntity(&CatError{HttpStatusCode: httpStatus, HttpStatus: http.StatusText(httpStatus), Message: message})
+	response.WriteEntity(&CatError{HTTPStatusCode: httpStatus, HTTPStatus: http.StatusText(httpStatus), Message: message})
 }
 
 func ReturnsStatus(httpStatus int, message string, model interface{}) func(b *restful.RouteBuilder) {

@@ -10,11 +10,35 @@ import (
 	"strings"
 )
 
-// TODO: Change to take a reader
-func UnzipEvent(src, dest string) (*CatEventDataV1, error) {
+// CatJSONError An error for failing to parse Cat event JSON files.
+type CatJSONError struct {
+	error
+}
+
+// CatJSONHeaderError An error for failing to parse Cat event JSON header.
+type CatJSONHeaderError struct {
+	error
+}
+
+// CatJSONVersionError Inidicates if the version is not supported.
+type CatJSONVersionError struct {
+	error
+}
+
+func isSupportedEventVersion(h *CatEventHeader) bool {
+	switch h.EventJSONVersion {
+	case "1.0":
+		return true
+	}
+
+	return false
+}
+
+// UnzipEvent Unzips a catcierge event ZIP file.
+func UnzipEvent(src, dest string) (*CatEventHeader, *CatEventDataV1, error) {
 	r, err := zip.OpenReader(src)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer func() {
 		if err := r.Close(); err != nil {
@@ -62,6 +86,7 @@ func UnzipEvent(src, dest string) (*CatEventDataV1, error) {
 
 	var pathPrefix string
 	var eventName string
+	var header CatEventHeader
 	var data CatEventDataV1
 
 	// TODO: Add known versions parsing
@@ -77,25 +102,43 @@ func UnzipEvent(src, dest string) (*CatEventDataV1, error) {
 			_, eventName = filepath.Split(strings.TrimSuffix(f.Name, filepath.Ext(f.Name)))
 			pathPrefix = filepath.Dir(f.Name)
 
-			log.Printf("Event name: %s\n", eventName)
+			log.Printf("Event ID: %s\n", eventName)
 			log.Printf("Path prefix: %s\n", pathPrefix)
 
 			// Decode the JSON.
 			rc, err := f.Open()
 			if err != nil {
-				// TODO: Return extended error message we can return in REST API.
-				return nil, err
+				return nil, nil, err
 			}
-
 			defer rc.Close()
 
-			// TODO: Fails on unmarshalling the dates
-			err = json.NewDecoder(rc).Decode(&data)
+			// Start by decoding the header so we can get the version info.
+			err = json.NewDecoder(rc).Decode(&header)
 			if err != nil {
-				log.Printf("Failed to decode event JSON: %s", err)
-				return nil, err
+				log.Printf("Failed to decode event header: %s", err)
+				return nil, nil, CatJSONHeaderError{err}
 			}
 
+			if !isSupportedEventVersion(&header) {
+				log.Printf("Unsupported version for event %s: %s", header.ID, header.Version)
+				return &header, nil, CatJSONVersionError{err}
+			}
+
+			// We can't seek in a zip file so we re-open it.
+			rc.Close()
+			rc, err = f.Open()
+			if err != nil {
+				return nil, nil, err
+			}
+			defer rc.Close()
+
+			// The version is supported to parse it.
+			// TODO: Add a map of parsers for different versions.
+			err = json.NewDecoder(rc).Decode(&data)
+			if err != nil {
+				log.Printf("Failed to decode JSON (v%s) for event %s: %s", header.EventJSONVersion, header.ID, err)
+				return &header, nil, CatJSONError{err}
+			}
 			break
 		}
 	}
@@ -105,9 +148,9 @@ func UnzipEvent(src, dest string) (*CatEventDataV1, error) {
 		f.Name = strings.TrimPrefix(f.Name, pathPrefix)
 		err := extractAndWriteFile(f)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
-	return &data, nil
+	return &header, &data, nil
 }

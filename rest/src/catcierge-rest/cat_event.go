@@ -2,20 +2,22 @@ package main
 
 import (
 	"fmt"
-	"github.com/emicklei/go-restful"
 	"io/ioutil"
-	"labix.org/v2/mgo/bson"
 	"log"
 	"net/http"
 	"os"
-	"time"
 	"path"
+	"time"
+
+	"github.com/emicklei/go-restful"
 	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 )
 
 const (
-	DefaultPageOffset = 0
-	DefaultPageLimit  = 10
+	DefaultPageOffset   = 0      // The default page offset for pagination.
+	DefaultPageLimit    = 10     // The default page limit for pagination.
+	DefaultMaxEventSize = 2 * MB // The default max ZIP size for a cat event.
 )
 
 var (
@@ -29,7 +31,9 @@ type CatEventTimeV1 struct {
 	time.Time
 }
 
-func (self *CatEventTimeV1) UnmarshalJSON(b []byte) (err error) {
+// Unmarshal a Cat Event Time stamp, the time zone is incorrectly separated
+// using a ':' we need to parse it using "2006-01-02T15:04:05.999999999Z0700" instead.
+func (c *CatEventTimeV1) UnmarshalJSON(b []byte) (err error) {
 	s := string(b)
 
 	// Get rid of the quotes "" around the value.
@@ -49,10 +53,12 @@ func (self *CatEventTimeV1) UnmarshalJSON(b []byte) (err error) {
 			return err
 		}
 	}
-	self.Time = t
+	c.Time = t
 	return
 }
 
+// Header containing the core information such as versions
+// and the event ID in the catcierge event JSON.
 type CatEventHeader struct {
 	ID               string `json:"id" bson:"id"`
 	EventJSONVersion string `json:"event_json_version" bson:"event_json_version"`
@@ -62,6 +68,7 @@ type CatEventHeader struct {
 	GitTainted       int    `json:"git_tainted" bson:"git_tainted"`
 }
 
+// CatEventHaarMatcherSettingsV1 Cat event haar cascade matcher settings.
 type CatEventHaarMatcherSettingsV1 struct {
 	Cascade       string `json:"cascade" bson:"cascade"`
 	EqHistogram   int    `json:"eq_histogram" bson:"eq_histogram"`
@@ -73,6 +80,7 @@ type CatEventHaarMatcherSettingsV1 struct {
 	PreySteps     int    `json:"prey_steps" bson:"prey_steps"`
 }
 
+// CatEventSettingsV1 Cat event settings.
 type CatEventSettingsV1 struct {
 	HaarMatcher       CatEventHaarMatcherSettingsV1 `json:"haar_matcher" bson:"haar_matcher"`
 	LockoutError      int                           `json:"lockout_error" bson:"lockout_error"`
@@ -85,22 +93,24 @@ type CatEventSettingsV1 struct {
 	OkMatchesNeeded   int                           `json:"ok_matches_needed" bson:"ok_matches_needed"`
 }
 
+// CatEventMatchStepV1 Cat event match step.
 type CatEventMatchStepV1 struct {
 	Active      int    `json:"active" bson:"active"`
 	Description string `json:"description" bson:"description"`
 	Filename    string `json:"filename" bson:"filename"`
 	Name        string `json:"name" bson:"name"`
 	Path        string `json:"path" bson:"path"`
-	Ref 		string `json:"ref",omitempty`
+	Ref         string `json:"ref,omitempty"`
 }
 
+// CatEventMatchV1 Cat event match.
 type CatEventMatchV1 struct {
 	ID              string                `json:"id" bson:"id"`
 	Description     string                `json:"description" bson:"description"`
 	Directon        string                `json:"direction" bson:"direction"`
 	Filename        string                `json:"filename" bson:"filename"`
 	Path            string                `json:"path" bson:"path"`
-	Ref 			string                `json:"ref",omitempty`
+	Ref             string                `json:"ref,omitempty"`
 	Result          float32               `json:"result" bson:"result"`
 	Success         int                   `json:"success" bson:"success"`
 	Time            CatEventTimeV1        `json:"time" bson:"time"`
@@ -109,6 +119,7 @@ type CatEventMatchV1 struct {
 	Steps           []CatEventMatchStepV1 `json:"steps" bson:"steps"`
 }
 
+// CatEventDataV1 Cat event data.
 type CatEventDataV1 struct {
 	CatEventHeader
 	State               string             `json:"state" bson:"state"`
@@ -129,6 +140,7 @@ type CatEventDataV1 struct {
 	Settings            CatEventSettingsV1 `json:"settings" bson:"settings"`
 }
 
+// CatEvent Cat event.
 type CatEvent struct {
 	ID      bson.ObjectId  `json:"id" bson:"_id"`
 	Name    string         `json:"name" bson:"name"`
@@ -137,6 +149,8 @@ type CatEvent struct {
 	Missing bool           `json:"missing" bson:"missing"`
 }
 
+// FillResponse This will fill a CatEvent struct with URLs based on the request origin
+// as well as the Path specified in the JSON.
 func (c *CatEvent) FillResponse(request *restful.Request) {
 	d := &c.Data
 	for mi := range d.Matches {
@@ -150,16 +164,19 @@ func (c *CatEvent) FillResponse(request *restful.Request) {
 	}
 }
 
+// CatEventResource A REST resource representing the CatEvents.
 type CatEventResource struct {
 	// MongoDB session.
 	session *mgo.Session
 }
 
+// CatEventListResponse A response returned when listing the CatEventResource.
 type CatEventListResponse struct {
 	ListResponseHeader
 	Items []CatEvent `json:"items"`
 }
 
+// DialMongo Dials the MongoDB instance.
 func DialMongo(mongoUrl string) *mgo.Session {
 	log.Printf("Attempting to dial %s", mongoUrl)
 
@@ -172,12 +189,14 @@ func DialMongo(mongoUrl string) *mgo.Session {
 	return session
 }
 
+// NewCatEventResource Create a new CatEventResource instance.
 func NewCatEventResource(session *mgo.Session) *CatEventResource {
 	return &CatEventResource{session: session}
 }
 
 // TODO: Add a new resource for listing all images.
 
+// Register Registers the resource endpoints for a CatEventResource.
 func (ev CatEventResource) Register(container *restful.Container) {
 	ws := new(restful.WebService)
 
@@ -223,9 +242,7 @@ func eventStaticFiles(req *restful.Request, resp *restful.Response) {
 	http.ServeFile(resp.ResponseWriter, req.Request, fullPath)
 }
 
-//
 // List events. Supports pagination.
-//
 func (ev CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
 	var l = CatEventListResponse{}
 	l.getListResponseParams(request)
@@ -264,10 +281,16 @@ func (ev CatEventResource) getEvent(request *restful.Request, response *restful.
 	response.WriteEntity(catEvent)
 }
 
-// curl --verbose --header "Content-Type: application/zip" --data-binary @file.zip http://awesome
+// Create a new catcierge event by uploading a ZIP file.
 func (ev *CatEventResource) createEvent(request *restful.Request, response *restful.Response) {
 
 	// TODO: Check file size so it is not too big. Maybe as a filter?
+	if request.Request.ContentLength >= int64(DefaultMaxEventSize) {
+		msg := fmt.Sprintf("Max file size allowed %s but got %s", DefaultMaxEventSize, ByteSize(request.Request.ContentLength))
+		log.Println(msg)
+		WriteCatciergeErrorString(response, http.StatusBadRequest, msg)
+		return
+	}
 
 	log.Printf("Received file\n")
 
@@ -301,10 +324,27 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 	}
 
 	// Unzip the file to the output directory.
-	eventData, err := UnzipEvent(tmpfile.Name(), *eventPath)
+	eventHeader, eventData, err := UnzipEvent(tmpfile.Name(), *eventPath)
 	if err != nil {
 		log.Printf("Failed to unzip file %v to %v: %s", tmpfile.Name(), *eventPath, err)
-		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
+		extra := ""
+		status := http.StatusInternalServerError
+
+		switch err.(type) {
+		case *CatJSONHeaderError:
+			extra = fmt.Sprintf("Failed to parse the JSON header %s", err.Error())
+			status = http.StatusBadRequest
+			break
+		case *CatJSONError:
+			extra = fmt.Sprintf("Failed to parse JSON for event %s. Expecting format %s: %s", eventHeader.ID, eventHeader.EventJSONVersion, err)
+			status = http.StatusBadRequest
+		case *CatJSONVersionError:
+			extra = fmt.Sprintf("Failed to parse JSON for event %s. Event JSON version %s is not supported.", eventHeader.ID, eventHeader.EventJSONVersion)
+			status = http.StatusBadRequest
+		default:
+			break
+		}
+		WriteCatciergeErrorString(response, status, extra)
 		return
 	}
 
@@ -312,14 +352,14 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 	catEvent := CatEvent{ID: bson.ObjectIdHex(eventData.ID[0:24]), Data: *eventData}
 
 	if err := ev.session.DB("catcierge").C("events").Insert(catEvent); err != nil {
-		log.Printf("Failed to insert event in database: %s", catEvent)
+		log.Printf("Failed to insert event in database: %+v", eventData)
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		return
 	}
 
 	response.WriteHeader(http.StatusCreated)
 	catEvent.FillResponse(request)
-	response.WriteEntity(catEvent) // TODO: Should return with Ref links.
+	response.WriteEntity(catEvent)
 
-	log.Printf("Successfully unpacked event\n")
+	log.Printf("Successfully unpacked event %s\n", eventData.ID)
 }
