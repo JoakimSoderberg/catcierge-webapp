@@ -15,7 +15,7 @@ type CatError struct {
 	Message        string `json:"message"`
 }
 
-// Used for all list resource responses to return pagination
+// ListResponseHeader Used for all list resource responses to return pagination
 // and other general information.
 type ListResponseHeader struct {
 	Count  int `json:"count"`
@@ -23,9 +23,13 @@ type ListResponseHeader struct {
 	Limit  int `json:"limit"`
 }
 
+// ReverseUrl Based on an incoming HTTP request gets the full URL with hostname.
 func ReverseUrl(request *http.Request, fullPath string) string {
-	revUrl := url.URL{Host: request.Host, Path: strings.Trim(fullPath, "/"), Scheme: serverScheme}
-	return revUrl.String()
+	revURL := url.URL{
+		Host:   request.Host,
+		Path:   strings.Trim(fullPath, "/"),
+		Scheme: serverScheme} // TODO: Get this from Request context instead.
+	return revURL.String()
 }
 
 func (l ListResponseHeader) getListResponseParams(request *restful.Request) {
@@ -44,23 +48,33 @@ func (l ListResponseHeader) getListResponseParams(request *restful.Request) {
 	l.Limit = limit
 }
 
-func AddListResponseParams(ws *restful.WebService) func(b *restful.RouteBuilder) {
+// AddListRequestParams Sets parameters for list pagination for a resource.
+func AddListRequestParams(ws *restful.WebService) func(b *restful.RouteBuilder) {
 	return func(b *restful.RouteBuilder) {
-		b.Param(ws.QueryParameter("offset", "Offset into the list").DataType("int").DefaultValue(string(DefaultPageOffset))).
-			Param(ws.QueryParameter("limit", "Number of items to return").DataType("int").DefaultValue(string(DefaultPageLimit)))
+		b.Param(ws.QueryParameter("offset", "Offset into the list").
+			DataType("int").DefaultValue(string(DefaultPageOffset)))
+
+		b.Param(ws.QueryParameter("limit", "Number of items to return").
+			DataType("int").DefaultValue(string(DefaultPageLimit)))
 	}
 }
 
+// WriteCatciergeErrorString Writes an error message as a response.
 func WriteCatciergeErrorString(response *restful.Response, httpStatus int, message string) {
 	if message == "" {
 		message = http.StatusText(httpStatus)
 	}
 
-	response.WriteHeader(httpStatus)
+	// TODO: Set correct content type based on what was requested by user.
 	response.AddHeader("Content-Type", "application/json")
-	response.WriteEntity(&CatError{HTTPStatusCode: httpStatus, HTTPStatus: http.StatusText(httpStatus), Message: message})
+	response.WriteHeaderAndEntity(httpStatus,
+		&CatError{
+			HTTPStatusCode: httpStatus,
+			HTTPStatus:     http.StatusText(httpStatus),
+			Message:        message})
 }
 
+// ReturnsStatus Helper for specifying what HTTP statuses a restful.RouteBuilder returns.
 func ReturnsStatus(httpStatus int, message string, model interface{}) func(b *restful.RouteBuilder) {
 	return func(b *restful.RouteBuilder) {
 		if message == "" {
@@ -70,6 +84,7 @@ func ReturnsStatus(httpStatus int, message string, model interface{}) func(b *re
 	}
 }
 
+// ReturnsError A more concise wrapper for error status codes for ReturnsStatus.
 func ReturnsError(httpStatus int) func(b *restful.RouteBuilder) {
 	return ReturnsStatus(httpStatus, "", CatError{})
 }

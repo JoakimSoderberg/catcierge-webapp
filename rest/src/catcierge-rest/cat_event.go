@@ -20,13 +20,6 @@ const (
 	DefaultMaxEventSize = 2 * MB // The default max ZIP size for a cat event.
 )
 
-var (
-	eventPath = app.Flag("event-path", "Unzip the uploaded event files in this path.").
-		Short('u').
-		Default("/go/src/app/events/").
-		String()
-)
-
 type CatEventTimeV1 struct {
 	time.Time
 }
@@ -167,7 +160,8 @@ func (c *CatEvent) FillResponse(request *restful.Request) {
 // CatEventResource A REST resource representing the CatEvents.
 type CatEventResource struct {
 	// MongoDB session.
-	session *mgo.Session
+	session  *mgo.Session
+	settings *catSettings
 }
 
 // CatEventListResponse A response returned when listing the CatEventResource.
@@ -182,7 +176,7 @@ func DialMongo(mongoUrl string) *mgo.Session {
 
 	session, err := mgo.Dial(mongoUrl)
 	if err != nil {
-		log.Printf("Failed to dial MongoDB")
+		log.Printf("Failed to dial MongoDB: %s", mongoUrl)
 		panic(err)
 	}
 
@@ -190,8 +184,8 @@ func DialMongo(mongoUrl string) *mgo.Session {
 }
 
 // NewCatEventResource Create a new CatEventResource instance.
-func NewCatEventResource(session *mgo.Session) *CatEventResource {
-	return &CatEventResource{session: session}
+func NewCatEventResource(session *mgo.Session, settings *catSettings) *CatEventResource {
+	return &CatEventResource{session: session, settings: settings}
 }
 
 // TODO: Add a new resource for listing all images.
@@ -208,7 +202,7 @@ func (ev CatEventResource) Register(container *restful.Container) {
 	ws.Route(ws.GET("/").To(ev.listEvents).
 		Doc("Get all events").
 		Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
-		Do(AddListResponseParams(ws),
+		Do(AddListRequestParams(ws),
 			ReturnsError(http.StatusInternalServerError)).
 		Writes(CatEventListResponse{}))
 
@@ -221,7 +215,7 @@ func (ev CatEventResource) Register(container *restful.Container) {
 		Writes(CatEvent{}))
 
 	// Static images.
-	ws.Route(ws.GET("/{event-id}/{subpath:*}").To(eventStaticFiles).
+	ws.Route(ws.GET("/{event-id}/{subpath:*}").To(ev.eventStaticFiles).
 		Doc("Get static files for an event such as images").
 		Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
 		Do(ReturnsStatus(http.StatusOK, "", CatEvent{}),
@@ -231,19 +225,20 @@ func (ev CatEventResource) Register(container *restful.Container) {
 	ws.Route(ws.POST("").To(ev.createEvent).
 		Doc("Create an event based on an event ZIP file").
 		Do(ReturnsError(http.StatusBadRequest),
+			ReturnsError(http.StatusConflict),
 			ReturnsError(http.StatusInternalServerError)))
 
 	container.Add(ws)
 }
 
-func eventStaticFiles(req *restful.Request, resp *restful.Response) {
-	fullPath := path.Join(*eventPath, req.PathParameter("event-id"), req.PathParameter("subpath"))
+func (ev *CatEventResource) eventStaticFiles(req *restful.Request, resp *restful.Response) {
+	fullPath := path.Join(ev.settings.eventPath, req.PathParameter("event-id"), req.PathParameter("subpath"))
 	log.Printf("GET %s", fullPath)
 	http.ServeFile(resp.ResponseWriter, req.Request, fullPath)
 }
 
 // List events. Supports pagination.
-func (ev CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
+func (ev *CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
 	var l = CatEventListResponse{}
 	l.getListResponseParams(request)
 
@@ -268,7 +263,7 @@ func (ev CatEventResource) listEvents(request *restful.Request, response *restfu
 }
 
 // Gets a single event.
-func (ev CatEventResource) getEvent(request *restful.Request, response *restful.Response) {
+func (ev *CatEventResource) getEvent(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("event-id")
 	oid := bson.ObjectIdHex(id[0:24])
 	catEvent := CatEvent{}
@@ -283,16 +278,16 @@ func (ev CatEventResource) getEvent(request *restful.Request, response *restful.
 
 // Create a new catcierge event by uploading a ZIP file.
 func (ev *CatEventResource) createEvent(request *restful.Request, response *restful.Response) {
+	fileSize := ByteSize(request.Request.ContentLength)
 
-	// TODO: Check file size so it is not too big. Maybe as a filter?
-	if request.Request.ContentLength >= int64(DefaultMaxEventSize) {
-		msg := fmt.Sprintf("Max file size allowed %s but got %s", DefaultMaxEventSize, ByteSize(request.Request.ContentLength))
+	if fileSize >= DefaultMaxEventSize {
+		msg := fmt.Sprintf("Max file size allowed %s but got %s", DefaultMaxEventSize, fileSize)
 		log.Println(msg)
 		WriteCatciergeErrorString(response, http.StatusBadRequest, msg)
 		return
 	}
 
-	log.Printf("Received file\n")
+	log.Printf("Received file of size %s\n", fileSize)
 
 	// Save the ZIP on the filesystem temporarily.
 	tmpfile, err := ioutil.TempFile("/tmp/", "event")
@@ -311,8 +306,6 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 		return
 	}
 
-	log.Printf("ZIP file size = %+v\n", len(content))
-
 	if _, err := tmpfile.Write(content); err != nil {
 		log.Printf("Failed to write to tmpfile %v: %s", tmpfile.Name(), err)
 		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
@@ -324,15 +317,15 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 	}
 
 	// Unzip the file to the output directory.
-	eventHeader, eventData, err := UnzipEvent(tmpfile.Name(), *eventPath)
+	eventHeader, eventData, err := UnzipEvent(tmpfile.Name(), ev.settings.eventPath)
 	if err != nil {
-		log.Printf("Failed to unzip file %v to %v: %s", tmpfile.Name(), *eventPath, err)
+		log.Printf("Failed to unzip file %v to %v: %s", tmpfile.Name(), ev.settings.eventPath, err)
 		extra := ""
 		status := http.StatusInternalServerError
 
 		switch err.(type) {
 		case *CatJSONHeaderError:
-			extra = fmt.Sprintf("Failed to parse the JSON header %s", err.Error())
+			extra = fmt.Sprintf("Failed to parse the JSON header %s", err)
 			status = http.StatusBadRequest
 			break
 		case *CatJSONError:
@@ -352,14 +345,18 @@ func (ev *CatEventResource) createEvent(request *restful.Request, response *rest
 	catEvent := CatEvent{ID: bson.ObjectIdHex(eventData.ID[0:24]), Data: *eventData}
 
 	if err := ev.session.DB("catcierge").C("events").Insert(catEvent); err != nil {
-		log.Printf("Failed to insert event in database: %+v", eventData)
-		WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
+		log.Printf("Failed to insert event in database: %s", err)
+		if mgo.IsDup(err) {
+			// TODO: Return a link to the existing resource in this error.
+			WriteCatciergeErrorString(response, http.StatusConflict, fmt.Sprintf("An event with this ID already exists: %s", eventData.ID))
+		} else {
+			WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
+		}
 		return
 	}
 
-	response.WriteHeader(http.StatusCreated)
 	catEvent.FillResponse(request)
-	response.WriteEntity(catEvent)
+	response.WriteHeaderAndEntity(http.StatusCreated, catEvent)
 
 	log.Printf("Successfully unpacked event %s\n", eventData.ID)
 }
