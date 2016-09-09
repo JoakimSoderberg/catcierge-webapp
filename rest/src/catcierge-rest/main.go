@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"labix.org/v2/mgo"
+
 	"github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful/swagger"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -95,6 +97,19 @@ func setupSwagger(container *restful.Container, settings *catSettings) {
 	}
 
 	swagger.RegisterSwaggerService(config, container)
+}
+
+// DialMongo Dials the MongoDB instance.
+func DialMongo(mongoURL string) *mgo.Session {
+	log.Printf("Attempting to dial %s", mongoURL)
+
+	session, err := mgo.Dial(mongoURL)
+	if err != nil {
+		log.Printf("Failed to dial MongoDB: %s", mongoURL)
+		panic(err)
+	}
+
+	return session
 }
 
 // WrapContext Wraps the given Handler and injects a context into each request.

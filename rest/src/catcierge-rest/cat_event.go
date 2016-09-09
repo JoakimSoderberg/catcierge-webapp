@@ -29,7 +29,7 @@ type CatEvent struct {
 	Missing bool           `json:"missing" bson:"missing"`
 }
 
-// FillResponse This will fill a CatEvent struct with URLs based on the request origin
+// CatEvent.FillResponse This will fill a CatEvent struct with URLs based on the request origin
 // as well as the Path specified in the JSON.
 func (c *CatEvent) FillResponse(request *restful.Request) {
 	d := &c.Data
@@ -56,19 +56,6 @@ type CatEventResource struct {
 type CatEventListResponse struct {
 	ListResponseHeader
 	Items []CatEvent `json:"items"`
-}
-
-// DialMongo Dials the MongoDB instance.
-func DialMongo(mongoURL string) *mgo.Session {
-	log.Printf("Attempting to dial %s", mongoURL)
-
-	session, err := mgo.Dial(mongoURL)
-	if err != nil {
-		log.Printf("Failed to dial MongoDB: %s", mongoURL)
-		panic(err)
-	}
-
-	return session
 }
 
 type key int
