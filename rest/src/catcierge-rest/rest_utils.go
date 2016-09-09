@@ -34,7 +34,7 @@ func ReverseUrl(request *http.Request, fullPath string) string {
 	revURL := url.URL{
 		Host:   request.Host,
 		Path:   strings.Trim(fullPath, "/"),
-		Scheme: serverScheme} // TODO: Get this from Request context instead.
+		Scheme: serverScheme}
 	return revURL.String()
 }
 
