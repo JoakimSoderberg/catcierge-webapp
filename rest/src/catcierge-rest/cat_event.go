@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -24,7 +25,7 @@ type CatEventTimeV1 struct {
 	time.Time
 }
 
-// Unmarshal a Cat Event Time stamp, the time zone is incorrectly separated
+// CatEventTimeV1.UnmarshalJSON Unmarshal a Cat Event Time stamp, the time zone is incorrectly separated
 // using a ':' we need to parse it using "2006-01-02T15:04:05.999999999Z0700" instead.
 func (c *CatEventTimeV1) UnmarshalJSON(b []byte) (err error) {
 	s := string(b)
@@ -160,8 +161,9 @@ func (c *CatEvent) FillResponse(request *restful.Request) {
 // CatEventResource A REST resource representing the CatEvents.
 type CatEventResource struct {
 	// MongoDB session.
-	session  *mgo.Session
-	settings *catSettings
+	session   *mgo.Session
+	settings  *catSettings
+	container *restful.Container
 }
 
 // CatEventListResponse A response returned when listing the CatEventResource.
@@ -181,6 +183,30 @@ func DialMongo(mongoUrl string) *mgo.Session {
 	}
 
 	return session
+}
+
+type key int
+
+var catKey key
+
+// NewContext Returns a new Context containing the CatEventResource value.
+func NewContext(ctx context.Context, ev *CatEventResource) context.Context {
+	return context.WithValue(ctx, catKey, ev)
+}
+
+// FromContext returns the CatEventResource in ctx, if any.
+func FromContext(ctx context.Context) (*CatEventResource, bool) {
+	ev, ok := ctx.Value(catKey).(*CatEventResource)
+	return ev, ok
+}
+
+// Wrapper so we can inject ourselves as context in the Request.
+func (ev *CatEventResource) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	// Create a new context and inject our catevent resource into it.
+	ctx := NewContext(context.Background(), ev)
+	ev.container.ServeHTTP(w, req.WithContext(ctx))
+
+	//return ev.container.ServeHTTP(w, req)
 }
 
 // NewCatEventResource Create a new CatEventResource instance.

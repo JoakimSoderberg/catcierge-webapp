@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,22 +16,18 @@ import (
 // DefaultPort Default port to run the Webserver on.
 const DefaultPort = "8080"
 
-var server *http.Server
-var serverScheme string
-
 type catSettings struct {
-	server          *http.Server
 	serverScheme    string
 	port            int
-	swaggerUrl      string
-	hostSwaggerUi   bool
+	swaggerURL      string
+	hostSwaggerUI   bool
 	swaggerFilePath string
 	swaggerPath     string
 	swaggerFileName string
 	useSSL          bool
 	sslCert         string
 	sslKey          string
-	mongoUrl        string
+	mongoURL        string
 	eventPath       string
 }
 
@@ -45,11 +42,11 @@ func configureFlags(app *kingpin.Application) *catSettings {
 
 	app.Flag("swagger-url", "(Optional) URL to an external swagger documentation browser service. Use this if you don't want to self host Swagger UI using --no-host-swagger-ui").
 		PlaceHolder("URL").
-		StringVar(&c.swaggerUrl)
+		StringVar(&c.swaggerURL)
 
 	app.Flag("host-swagger-ui", "(Default) If we should host the Swagger UI API browser. Turn off using --no-host-swagger-ui.").
 		Default("true").
-		BoolVar(&c.hostSwaggerUi)
+		BoolVar(&c.hostSwaggerUI)
 
 	app.Flag("swagger-ui-dist", "Path to Swagger-UI files (http://swagger.io/swagger-ui/). Use 'npm install -g swagger-ui' to install").
 		Default("/usr/local/lib/node_modules/swagger-ui/dist").
@@ -70,7 +67,7 @@ func configureFlags(app *kingpin.Application) *catSettings {
 	app.Flag("mongo-url", "Url to MongoDB instance. mongodb://host:port").
 		Default("mongodb://localhost").
 		OverrideDefaultFromEnvar("MONGO_URL").
-		StringVar(&c.mongoUrl)
+		StringVar(&c.mongoURL)
 
 	app.Flag("event-path", "Unzip the uploaded event files in this path.").
 		Short('u').
@@ -82,29 +79,14 @@ func configureFlags(app *kingpin.Application) *catSettings {
 	return c
 }
 
-func main() {
-	app := kingpin.New(os.Args[0], "A REST API Server for the Catcierge project.")
-	settings := configureFlags(app)
-	kingpin.MustParse(app.Parse(os.Args[1:]))
-
-	wsContainer := restful.NewContainer()
-
-	db := DialMongo(settings.mongoUrl)
-	defer db.Close()
-
-	cr := NewCatEventResource(db, settings)
-	cr.Register(wsContainer)
-
-	// TODO: Add support for getting JSON schemas for everything.
-	// TODO: Add heartbeat support, so we can notif if catcierge is down
-
+func setupSwagger(container *restful.Container, settings *catSettings) {
 	// Swagger documentation.
 	config := swagger.Config{
-		WebServices: wsContainer.RegisteredWebServices(),
+		WebServices: container.RegisteredWebServices(),
 		ApiPath:     filepath.Join(settings.swaggerPath, settings.swaggerFileName),
 	}
 
-	if settings.hostSwaggerUi {
+	if settings.hostSwaggerUI {
 		log.Printf("Hosting Swagger UI under %v\n", config.ApiPath)
 		config.SwaggerPath = settings.swaggerPath
 		config.SwaggerFilePath = settings.swaggerFilePath
@@ -112,10 +94,43 @@ func main() {
 		log.Printf("Using external Swagger UI at %v\n", config.WebServicesUrl)
 	}
 
-	swagger.RegisterSwaggerService(config, wsContainer)
+	swagger.RegisterSwaggerService(config, container)
+}
+
+// WrapContext Wraps the given Handler and injects a context into each request.
+func WrapContext(handler http.Handler, ev *CatEventResource) http.Handler {
+	// Create a new context and inject our catevent resource into it.
+	ctx := NewContext(context.Background(), ev)
+	wrapped := func(w http.ResponseWriter, req *http.Request) {
+		handler.ServeHTTP(w, req.WithContext(ctx))
+	}
+	return http.HandlerFunc(wrapped)
+}
+
+func main() {
+
+	// Parse command line flags.
+	app := kingpin.New(os.Args[0], "A REST API Server for the Catcierge project.")
+	settings := configureFlags(app)
+	kingpin.MustParse(app.Parse(os.Args[1:]))
+
+	// Connect to MongoDB.
+	db := DialMongo(settings.mongoURL)
+	defer db.Close()
+
+	// Setup Go-restful and create the REST resources.
+	wsContainer := restful.NewContainer()
+	ev := NewCatEventResource(db, settings)
+	ev.Register(wsContainer)
+
+	// TODO: Add support for getting JSON schemas for everything.
+	// TODO: Add heartbeat support, so we can notify if catcierge is down
+	setupSwagger(wsContainer, settings)
 
 	log.Printf("Start listening on port %v", settings.port)
-	server = &http.Server{Addr: fmt.Sprintf(":%v", settings.port), Handler: wsContainer}
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%v", settings.port),
+		Handler: WrapContext(wsContainer, ev)}
 
 	if settings.useSSL {
 		log.Printf("Using SSL")
