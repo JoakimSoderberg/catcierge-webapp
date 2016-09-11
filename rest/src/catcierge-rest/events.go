@@ -83,6 +83,8 @@ func NewCatEventResource(session *mgo.Session, settings *catSettings) *CatEventR
 func (ev CatEventResource) Register(container *restful.Container) {
 	ws := new(restful.WebService)
 
+	event_id := ws.PathParameter("event-id", "identifier of the event").DataType("string")
+
 	ws.Path("/events").
 		Doc("Manage events").
 		Consumes("application/zip").
@@ -97,7 +99,7 @@ func (ev CatEventResource) Register(container *restful.Container) {
 
 	ws.Route(ws.GET("/{event-id}").To(ev.getEvent).
 		Doc("Get an event").
-		Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
+		Param(event_id).
 		Do(ReturnsStatus(http.StatusOK, "", CatEvent{}),
 			ReturnsError(http.StatusNotFound),
 			ReturnsError(http.StatusInternalServerError)).
@@ -106,7 +108,7 @@ func (ev CatEventResource) Register(container *restful.Container) {
 	// Static images.
 	ws.Route(ws.GET("/{event-id}/{subpath:*}").To(ev.eventStaticFiles).
 		Doc("Get static files for an event such as images").
-		Param(ws.PathParameter("event-id", "identifier of the event").DataType("string")).
+		Param(event_id).
 		Do(ReturnsStatus(http.StatusOK, "", CatEvent{}),
 			ReturnsError(http.StatusNotFound),
 			ReturnsError(http.StatusInternalServerError)))
