@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 
 	"labix.org/v2/mgo"
@@ -146,6 +147,18 @@ func main() {
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%v", settings.port),
 		Handler: WrapContext(wsContainer, ev)}
+
+	// Handle interrupts.
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+
+	go func() {
+		for _ = range c {
+			// sig is a ^C, handle it
+			// TODO: Do any cleanup on interrupt.
+			log.Fatal("Teardown finished, forcing exit\n")
+		}
+	}()
 
 	if settings.useSSL {
 		log.Printf("Using SSL")

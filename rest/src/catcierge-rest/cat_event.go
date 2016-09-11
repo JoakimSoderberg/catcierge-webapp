@@ -47,9 +47,8 @@ func (c *CatEvent) FillResponse(request *restful.Request) {
 // CatEventResource A REST resource representing the CatEvents.
 type CatEventResource struct {
 	// MongoDB session.
-	session   *mgo.Session
-	settings  *catSettings
-	container *restful.Container
+	session  *mgo.Session
+	settings *catSettings
 }
 
 // CatEventListResponse A response returned when listing the CatEventResource.
