@@ -157,6 +157,14 @@ func (ev *CatEventResource) listEvents(request *restful.Request, response *restf
 func (ev *CatEventResource) getEvent(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("event-id")
 	oid := bson.ObjectIdHex(id[0:24])
+
+	account, ok := request.PathParameters()["account-name"]
+	if ok {
+		// TODO: Change the query based on if we have an accout name or not
+		WriteCatciergeErrorString(response, http.StatusNotFound, fmt.Sprintf("Account '%s' could not be found", account))
+		return
+	}
+
 	catEvent := CatEvent{}
 
 	if err := ev.session.DB("catcierge").C("events").FindId(oid).One(&catEvent); err != nil {
