@@ -2,17 +2,9 @@ package main
 
 import "labix.org/v2/mgo"
 
+// CatciergeResource base resource for the entire API.
 type CatciergeResource struct {
+	// MongoDB session.
 	session  *mgo.Session
 	settings *catSettings
-	events   *CatEventResource
-	accounts *Accounts
-}
-
-func NewCatciergeResource(session *mgo.Session, settings *catSettings) *CatciergeResource {
-	return &CatciergeResource{
-		session:  session,
-		settings: settings,
-		events:   &CatEventResource{},
-		accounts: &Accounts{}}
 }

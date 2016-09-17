@@ -9,7 +9,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/emicklei/go-restful"
+	restful "github.com/emicklei/go-restful"
 	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 )
@@ -45,10 +45,8 @@ func (c *CatEvent) FillResponse(request *restful.Request) {
 }
 
 // CatEventResource A REST resource representing the CatEvents.
-type CatEventResource struct {
-	// MongoDB session.
-	session  *mgo.Session
-	settings *catSettings
+type CatEventsResource struct {
+	CatciergeResource
 }
 
 // CatEventListResponse A response returned when listing the CatEventResource.
@@ -62,25 +60,25 @@ type key int
 var catKey key
 
 // NewContext Returns a new Context containing the CatEventResource value.
-func NewEventContext(ctx context.Context, ev *CatEventResource) context.Context {
+func NewEventContext(ctx context.Context, ev *CatEventsResource) context.Context {
 	return context.WithValue(ctx, catKey, ev)
 }
 
 // FromContext returns the CatEventResource in ctx, if any.
-func FromEventContext(ctx context.Context) (*CatEventResource, bool) {
-	ev, ok := ctx.Value(catKey).(*CatEventResource)
+func FromEventContext(ctx context.Context) (*CatEventsResource, bool) {
+	ev, ok := ctx.Value(catKey).(*CatEventsResource)
 	return ev, ok
 }
 
 // NewCatEventResource Create a new CatEventResource instance.
-func NewEventResource(session *mgo.Session, settings *catSettings) *CatEventResource {
-	return &CatEventResource{session: session, settings: settings}
+func NewEventResource(session *mgo.Session, settings *catSettings) *CatEventsResource {
+	return &CatEventsResource{CatciergeResource{session: session, settings: settings}}
 }
 
 // TODO: Add a new resource for listing all images.
 
 // Register Registers the resource endpoints for a CatEventResource.
-func (ev CatEventResource) Register(container *restful.Container) {
+func (ev CatEventsResource) Register(container *restful.Container) {
 	ws := new(restful.WebService)
 
 	eventID := ws.PathParameter("event-id", "identifier of the event").DataType("string")
@@ -122,14 +120,14 @@ func (ev CatEventResource) Register(container *restful.Container) {
 	container.Add(ws)
 }
 
-func (ev *CatEventResource) eventStaticFiles(req *restful.Request, resp *restful.Response) {
+func (ev *CatEventsResource) eventStaticFiles(req *restful.Request, resp *restful.Response) {
 	fullPath := path.Join(ev.settings.eventPath, req.PathParameter("event-id"), req.PathParameter("subpath"))
 	log.Printf("GET %s", fullPath)
 	http.ServeFile(resp.ResponseWriter, req.Request, fullPath)
 }
 
 // List events. Supports pagination.
-func (ev *CatEventResource) listEvents(request *restful.Request, response *restful.Response) {
+func (ev *CatEventsResource) listEvents(request *restful.Request, response *restful.Response) {
 	var l = CatEventListResponse{}
 	l.getListResponseParams(request)
 
@@ -154,7 +152,7 @@ func (ev *CatEventResource) listEvents(request *restful.Request, response *restf
 }
 
 // Gets a single event.
-func (ev *CatEventResource) getEvent(request *restful.Request, response *restful.Response) {
+func (ev *CatEventsResource) getEvent(request *restful.Request, response *restful.Response) {
 	id := request.PathParameter("event-id")
 	oid := bson.ObjectIdHex(id[0:24])
 
@@ -176,7 +174,7 @@ func (ev *CatEventResource) getEvent(request *restful.Request, response *restful
 }
 
 // Create a new catcierge event by uploading a ZIP file.
-func (ev *CatEventResource) createEvent(request *restful.Request, response *restful.Response) {
+func (ev *CatEventsResource) createEvent(request *restful.Request, response *restful.Response) {
 	fileSize := ByteSize(request.Request.ContentLength)
 
 	if fileSize >= DefaultMaxEventSize {
