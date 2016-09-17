@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 
 	"labix.org/v2/mgo"
@@ -22,6 +23,29 @@ type Account struct {
 type AccountListResponse struct {
 	ListResponseHeader
 	Items []Account `json:"items"`
+}
+
+var accountsKey key
+
+// NewAccountsContext Returns a new Context containing the CatEventResource value.
+func NewAccountsContext(ctx context.Context, ev *AccountsResource) context.Context {
+	return context.WithValue(ctx, accountsKey, ev)
+}
+
+// FromAccountsContext returns the CatEventResource in ctx, if any.
+func FromAccountsContext(ctx context.Context) (*AccountsResource, bool) {
+	ev, ok := ctx.Value(accountsKey).(*AccountsResource)
+	return ev, ok
+}
+
+// WrapContext Wraps the given Handler and injects a context into each request containing the AccountsResource.
+func (ac *AccountsResource) WrapContext(handler http.Handler, c *context.Context) http.Handler {
+	// Create a new context and inject our accounts resource into it.
+	ctx := NewAccountsContext(*c, ac)
+	wrapped := func(w http.ResponseWriter, req *http.Request) {
+		handler.ServeHTTP(w, req.WithContext(ctx))
+	}
+	return http.HandlerFunc(wrapped)
 }
 
 // NewAccountResource create a new AccountsResource

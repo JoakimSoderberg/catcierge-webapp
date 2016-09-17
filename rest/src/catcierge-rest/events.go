@@ -14,11 +14,14 @@ import (
 	"labix.org/v2/mgo/bson"
 )
 
-const (
-	DefaultPageOffset   = 0      // The default page offset for pagination.
-	DefaultPageLimit    = 10     // The default page limit for pagination.
-	DefaultMaxEventSize = 2 * MB // The default max ZIP size for a cat event.
-)
+// DefaultPageOffset The default page offset for pagination.
+const DefaultPageOffset = 0
+
+// DefaultPageLimit The default page limit for pagination.
+const DefaultPageLimit = 10
+
+// DefaultMaxEventSize The default max ZIP size for a cat event.
+const DefaultMaxEventSize = 2 * MB
 
 // CatEvent Cat event.
 type CatEvent struct {
@@ -29,22 +32,22 @@ type CatEvent struct {
 	Missing bool           `json:"missing" bson:"missing"`
 }
 
-// CatEvent.FillResponse This will fill a CatEvent struct with URLs based on the request origin
+// FillResponse This will fill a CatEvent struct with URLs based on the request origin
 // as well as the Path specified in the JSON.
 func (c *CatEvent) FillResponse(request *restful.Request) {
 	d := &c.Data
 	for mi := range d.Matches {
 		m := &d.Matches[mi]
-		m.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), m.Path))
+		m.Ref = ReverseURL(request.Request, path.Join(request.Request.URL.String(), m.Path))
 
 		for si := range m.Steps {
 			s := &m.Steps[si]
-			s.Ref = ReverseUrl(request.Request, path.Join(request.Request.URL.String(), s.Path))
+			s.Ref = ReverseURL(request.Request, path.Join(request.Request.URL.String(), s.Path))
 		}
 	}
 }
 
-// CatEventResource A REST resource representing the CatEvents.
+// CatEventsResource A REST resource representing the CatEvents.
 type CatEventsResource struct {
 	CatciergeResource
 }
@@ -55,23 +58,31 @@ type CatEventListResponse struct {
 	Items []CatEvent `json:"items"`
 }
 
-type key int
+var eventsKey key
 
-var catKey key
-
-// NewContext Returns a new Context containing the CatEventResource value.
-func NewEventContext(ctx context.Context, ev *CatEventsResource) context.Context {
-	return context.WithValue(ctx, catKey, ev)
+// NewEventsContext Returns a new Context containing the CatEventResource value.
+func NewEventsContext(ctx context.Context, ev *CatEventsResource) context.Context {
+	return context.WithValue(ctx, eventsKey, ev)
 }
 
-// FromContext returns the CatEventResource in ctx, if any.
-func FromEventContext(ctx context.Context) (*CatEventsResource, bool) {
-	ev, ok := ctx.Value(catKey).(*CatEventsResource)
+// FromEventsContext returns the CatEventResource in ctx, if any.
+func FromEventsContext(ctx context.Context) (*CatEventsResource, bool) {
+	ev, ok := ctx.Value(eventsKey).(*CatEventsResource)
 	return ev, ok
 }
 
-// NewCatEventResource Create a new CatEventResource instance.
-func NewEventResource(session *mgo.Session, settings *catSettings) *CatEventsResource {
+// WrapContext Wraps the given Handler and injects a context into each request containing the CatEventsResource.
+func (ev *CatEventsResource) WrapContext(handler http.Handler, c *context.Context) http.Handler {
+	// Create a new context and inject our catevent resource into it.
+	ctx := NewEventsContext(*c, ev)
+	wrapped := func(w http.ResponseWriter, req *http.Request) {
+		handler.ServeHTTP(w, req.WithContext(ctx))
+	}
+	return http.HandlerFunc(wrapped)
+}
+
+// NewEventsResource Create a new CatEventResource instance.
+func NewEventsResource(session *mgo.Session, settings *catSettings) *CatEventsResource {
 	return &CatEventsResource{CatciergeResource{session: session, settings: settings}}
 }
 

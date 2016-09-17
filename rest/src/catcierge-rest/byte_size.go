@@ -2,6 +2,7 @@ package main
 
 import "fmt"
 
+// ByteSize represents a byte size.
 type ByteSize float64
 
 // Bytesizes.

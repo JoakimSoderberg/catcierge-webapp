@@ -2,11 +2,12 @@ package main
 
 import "time"
 
+// CatEventTimeV1 Wraps a normal time to fix parsing.
 type CatEventTimeV1 struct {
 	time.Time
 }
 
-// CatEventTimeV1.UnmarshalJSON Unmarshal a Cat Event Time stamp, the time zone is incorrectly separated
+// UnmarshalJSON Unmarshal a Cat Event Time stamp, the time zone is incorrectly separated
 // using a ':' we need to parse it using "2006-01-02T15:04:05.999999999Z0700" instead.
 func (c *CatEventTimeV1) UnmarshalJSON(b []byte) (err error) {
 	s := string(b)
@@ -32,7 +33,7 @@ func (c *CatEventTimeV1) UnmarshalJSON(b []byte) (err error) {
 	return
 }
 
-// Header containing the core information such as versions
+// CatEventHeader contains the core information such as versions
 // and the event ID in the catcierge event JSON.
 type CatEventHeader struct {
 	ID               string `json:"id" bson:"id"`

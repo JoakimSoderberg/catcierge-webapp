@@ -113,14 +113,15 @@ func DialMongo(mongoURL string) *mgo.Session {
 	return session
 }
 
-// WrapContext Wraps the given Handler and injects a context into each request.
-func WrapContext(handler http.Handler, ev *CatEventsResource) http.Handler {
-	// Create a new context and inject our catevent resource into it.
-	ctx := NewEventContext(context.Background(), ev)
-	wrapped := func(w http.ResponseWriter, req *http.Request) {
-		handler.ServeHTTP(w, req.WithContext(ctx))
+// WrapContexts Wraps the given Handler and injects a context into each request.
+func WrapContexts(handler http.Handler, resources []CatciergeContextWrapper) http.Handler {
+	c := context.Background()
+
+	for _, r := range resources {
+		handler = r.WrapContext(handler, &c)
 	}
-	return http.HandlerFunc(wrapped)
+
+	return handler
 }
 
 func main() {
@@ -137,7 +138,7 @@ func main() {
 	// Setup Go-restful and create the REST resources.
 	wsContainer := restful.NewContainer()
 
-	ev := NewEventResource(db, settings)
+	ev := NewEventsResource(db, settings)
 	ev.Register(wsContainer)
 
 	ac := NewAccountResource(db, settings)
@@ -159,7 +160,7 @@ func main() {
 	log.Printf("Start listening on port %v", settings.port)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%v", settings.port),
-		Handler: WrapContext(wsContainer, ev)}
+		Handler: WrapContexts(wsContainer, []CatciergeContextWrapper{ev, ac})}
 
 	// Handle interrupts.
 	c := make(chan os.Signal, 1)

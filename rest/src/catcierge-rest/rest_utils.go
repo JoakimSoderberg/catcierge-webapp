@@ -9,6 +9,9 @@ import (
 	"github.com/emicklei/go-restful"
 )
 
+type key int // Used as a type for context keys.
+
+// CatError represents an error reply for the REST API.
 type CatError struct {
 	HTTPStatusCode int    `json:"http_status_code"`
 	HTTPStatus     string `json:"http_status"`
@@ -23,9 +26,9 @@ type ListResponseHeader struct {
 	Limit  int `json:"limit"`
 }
 
-// ReverseUrl Based on an incoming HTTP request gets the full URL with hostname.
-func ReverseUrl(request *http.Request, fullPath string) string {
-	ev, ok := FromEventContext(request.Context())
+// ReverseURL Based on an incoming HTTP request gets the full URL with hostname.
+func ReverseURL(request *http.Request, fullPath string) string {
+	ev, ok := FromEventsContext(request.Context())
 	serverScheme := "http"
 	if ok {
 		serverScheme = ev.settings.serverScheme
