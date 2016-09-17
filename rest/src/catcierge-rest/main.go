@@ -19,7 +19,8 @@ import (
 // DefaultPort Default port to run the Webserver on.
 const DefaultPort = "8080"
 
-type catSettings struct {
+// CatSettings represents the command line settings for the app.
+type CatSettings struct {
 	serverScheme    string
 	port            int
 	swaggerURL      string
@@ -34,8 +35,21 @@ type catSettings struct {
 	eventPath       string
 }
 
-func configureFlags(app *kingpin.Application) *catSettings {
-	c := &catSettings{}
+var settingsKey key
+
+// AddContext adds the CatSettings to the request context.
+func (settings *CatSettings) AddContext(c *context.Context) context.Context {
+	return context.WithValue(*c, settingsKey, settings)
+}
+
+// FromSettingsContext returns the catSettings in ctx, if any.
+func FromSettingsContext(ctx context.Context) (*CatSettings, bool) {
+	ev, ok := ctx.Value(eventsKey).(*CatSettings)
+	return ev, ok
+}
+
+func configureFlags(app *kingpin.Application) *CatSettings {
+	c := &CatSettings{}
 
 	app.Flag("port", "Listen port for the web server.").
 		Short('p').
@@ -82,7 +96,7 @@ func configureFlags(app *kingpin.Application) *catSettings {
 	return c
 }
 
-func setupSwagger(container *restful.Container, settings *catSettings) {
+func setupSwagger(container *restful.Container, settings *CatSettings) {
 	// Swagger documentation.
 	config := swagger.Config{
 		WebServices: container.RegisteredWebServices(),
@@ -114,14 +128,30 @@ func DialMongo(mongoURL string) *mgo.Session {
 }
 
 // WrapContexts Wraps the given Handler and injects a context into each request.
-func WrapContexts(handler http.Handler, resources []CatciergeContextWrapper) http.Handler {
+func WrapContexts(handler http.Handler, resources []CatciergeContextAdder) http.Handler {
 	c := context.Background()
 
 	for _, r := range resources {
-		handler = r.WrapContext(handler, &c)
+		c = r.AddContext(&c)
 	}
 
-	return handler
+	return GetWrappedContextHTTPHandler(handler, c)
+}
+
+func basicTokenAuthenticate(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	//encoded := req.Request.Header.Get("Authorization")
+	// usr/pwd = admin/admin
+	// real code does some decoding
+	/*if len(encoded) == 0 || "Bearer YWRtaW46YWRtaW4=" != encoded {
+		resp.AddHeader("WWW-Authenticate", "Basic realm=Protected Area")
+		resp.WriteErrorString(401, "401: Not Authorized")
+		return
+	}*/
+	// TODO: Get UserResource context here.
+	// TODO: Look up tokens in the database to authenticate.
+	// TODO:
+
+	chain.ProcessFilter(req, resp)
 }
 
 func main() {
@@ -137,6 +167,7 @@ func main() {
 
 	// Setup Go-restful and create the REST resources.
 	wsContainer := restful.NewContainer()
+	wsContainer.Filter(basicTokenAuthenticate)
 
 	ev := NewEventsResource(db, settings)
 	ev.Register(wsContainer)
@@ -160,7 +191,7 @@ func main() {
 	log.Printf("Start listening on port %v", settings.port)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%v", settings.port),
-		Handler: WrapContexts(wsContainer, []CatciergeContextWrapper{ev, ac})}
+		Handler: WrapContexts(wsContainer, []CatciergeContextAdder{ev, ac, settings})}
 
 	// Handle interrupts.
 	c := make(chan os.Signal, 1)

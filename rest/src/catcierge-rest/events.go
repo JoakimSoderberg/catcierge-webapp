@@ -60,29 +60,19 @@ type CatEventListResponse struct {
 
 var eventsKey key
 
-// NewEventsContext Returns a new Context containing the CatEventResource value.
-func NewEventsContext(ctx context.Context, ev *CatEventsResource) context.Context {
-	return context.WithValue(ctx, eventsKey, ev)
-}
-
 // FromEventsContext returns the CatEventResource in ctx, if any.
 func FromEventsContext(ctx context.Context) (*CatEventsResource, bool) {
 	ev, ok := ctx.Value(eventsKey).(*CatEventsResource)
 	return ev, ok
 }
 
-// WrapContext Wraps the given Handler and injects a context into each request containing the CatEventsResource.
-func (ev *CatEventsResource) WrapContext(handler http.Handler, c *context.Context) http.Handler {
-	// Create a new context and inject our catevent resource into it.
-	ctx := NewEventsContext(*c, ev)
-	wrapped := func(w http.ResponseWriter, req *http.Request) {
-		handler.ServeHTTP(w, req.WithContext(ctx))
-	}
-	return http.HandlerFunc(wrapped)
+// AddContext appends the CatEventsResource to the request context.
+func (ev *CatEventsResource) AddContext(c *context.Context) context.Context {
+	return context.WithValue(*c, eventsKey, ev)
 }
 
 // NewEventsResource Create a new CatEventResource instance.
-func NewEventsResource(session *mgo.Session, settings *catSettings) *CatEventsResource {
+func NewEventsResource(session *mgo.Session, settings *CatSettings) *CatEventsResource {
 	return &CatEventsResource{CatciergeResource{session: session, settings: settings}}
 }
 

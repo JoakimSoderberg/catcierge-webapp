@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -28,10 +29,10 @@ type ListResponseHeader struct {
 
 // ReverseURL Based on an incoming HTTP request gets the full URL with hostname.
 func ReverseURL(request *http.Request, fullPath string) string {
-	ev, ok := FromEventsContext(request.Context())
+	settings, ok := FromSettingsContext(request.Context())
 	serverScheme := "http"
 	if ok {
-		serverScheme = ev.settings.serverScheme
+		serverScheme = settings.serverScheme
 	}
 
 	revURL := url.URL{
@@ -96,4 +97,12 @@ func ReturnsStatus(httpStatus int, message string, model interface{}) func(b *re
 // ReturnsError A more concise wrapper for error status codes for ReturnsStatus.
 func ReturnsError(httpStatus int) func(b *restful.RouteBuilder) {
 	return ReturnsStatus(httpStatus, "", CatError{})
+}
+
+// GetWrappedContextHTTPHandler wraps a HTTP handler with a new one that appends a context to the request.
+func GetWrappedContextHTTPHandler(handler http.Handler, ctx context.Context) http.Handler {
+	wrapped := func(w http.ResponseWriter, req *http.Request) {
+		handler.ServeHTTP(w, req.WithContext(ctx))
+	}
+	return http.HandlerFunc(wrapped)
 }

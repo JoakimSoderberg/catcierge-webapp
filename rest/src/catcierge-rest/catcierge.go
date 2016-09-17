@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"net/http"
 
 	"labix.org/v2/mgo"
 )
@@ -11,11 +10,10 @@ import (
 type CatciergeResource struct {
 	// MongoDB session.
 	session  *mgo.Session
-	settings *catSettings
+	settings *CatSettings
 }
 
-// CatciergeContextWrapper is an interface that wraps a HTTP handler with a catcierge resource.
-type CatciergeContextWrapper interface {
-	// WrapContext Wraps the given Handler and injects a context into each request.
-	WrapContext(handler http.Handler, c *context.Context) http.Handler
+// CatciergeContextAdder Implementers of this interface will add a new context to a context parent.
+type CatciergeContextAdder interface {
+	AddContext(c *context.Context) context.Context
 }

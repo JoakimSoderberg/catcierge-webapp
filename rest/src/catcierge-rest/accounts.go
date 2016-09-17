@@ -27,29 +27,19 @@ type AccountListResponse struct {
 
 var accountsKey key
 
-// NewAccountsContext Returns a new Context containing the CatEventResource value.
-func NewAccountsContext(ctx context.Context, ev *AccountsResource) context.Context {
-	return context.WithValue(ctx, accountsKey, ev)
-}
-
 // FromAccountsContext returns the CatEventResource in ctx, if any.
 func FromAccountsContext(ctx context.Context) (*AccountsResource, bool) {
 	ev, ok := ctx.Value(accountsKey).(*AccountsResource)
 	return ev, ok
 }
 
-// WrapContext Wraps the given Handler and injects a context into each request containing the AccountsResource.
-func (ac *AccountsResource) WrapContext(handler http.Handler, c *context.Context) http.Handler {
-	// Create a new context and inject our accounts resource into it.
-	ctx := NewAccountsContext(*c, ac)
-	wrapped := func(w http.ResponseWriter, req *http.Request) {
-		handler.ServeHTTP(w, req.WithContext(ctx))
-	}
-	return http.HandlerFunc(wrapped)
+// AddContext add AccountsResource to the context.
+func (ac *AccountsResource) AddContext(c *context.Context) context.Context {
+	return context.WithValue(*c, accountsKey, ac)
 }
 
 // NewAccountResource create a new AccountsResource
-func NewAccountResource(session *mgo.Session, settings *catSettings) *AccountsResource {
+func NewAccountResource(session *mgo.Session, settings *CatSettings) *AccountsResource {
 	return &AccountsResource{CatciergeResource{session: session, settings: settings}}
 }
 
