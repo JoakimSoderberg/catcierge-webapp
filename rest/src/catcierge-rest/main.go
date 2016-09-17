@@ -116,7 +116,7 @@ func DialMongo(mongoURL string) *mgo.Session {
 // WrapContext Wraps the given Handler and injects a context into each request.
 func WrapContext(handler http.Handler, ev *CatEventResource) http.Handler {
 	// Create a new context and inject our catevent resource into it.
-	ctx := NewContext(context.Background(), ev)
+	ctx := NewEventContext(context.Background(), ev)
 	wrapped := func(w http.ResponseWriter, req *http.Request) {
 		handler.ServeHTTP(w, req.WithContext(ctx))
 	}
@@ -136,17 +136,30 @@ func main() {
 
 	// Setup Go-restful and create the REST resources.
 	wsContainer := restful.NewContainer()
-	ev := NewCatEventResource(db, settings)
-	ev.Register(wsContainer)
+
+	root := NewCatciergeResource(db, settings)
+	root.Register(wsContainer)
+
+	//ev := NewEventResource(db, settings)
+	//ev.Register(wsContainer)
 
 	// TODO: Add support for getting JSON schemas for everything.
 	// TODO: Add heartbeat support, so we can notify if catcierge is down
 	setupSwagger(wsContainer, settings)
 
+	// Accept and respond in JSON unless told otherwise.
+	restful.DefaultRequestContentType(restful.MIME_JSON)
+	restful.DefaultResponseContentType(restful.MIME_JSON)
+
+	// Faster router.
+	restful.DefaultContainer.Router(restful.CurlyRouter{})
+	// No need to access body more than once.
+	restful.SetCacheReadEntity(false)
+
 	log.Printf("Start listening on port %v", settings.port)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%v", settings.port),
-		Handler: WrapContext(wsContainer, ev)}
+		Handler: wsContainer} // WrapContext(wsContainer, ev)}
 
 	// Handle interrupts.
 	c := make(chan os.Signal, 1)

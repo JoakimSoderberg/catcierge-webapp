@@ -62,18 +62,18 @@ type key int
 var catKey key
 
 // NewContext Returns a new Context containing the CatEventResource value.
-func NewContext(ctx context.Context, ev *CatEventResource) context.Context {
+func NewEventContext(ctx context.Context, ev *CatEventResource) context.Context {
 	return context.WithValue(ctx, catKey, ev)
 }
 
 // FromContext returns the CatEventResource in ctx, if any.
-func FromContext(ctx context.Context) (*CatEventResource, bool) {
+func FromEventContext(ctx context.Context) (*CatEventResource, bool) {
 	ev, ok := ctx.Value(catKey).(*CatEventResource)
 	return ev, ok
 }
 
 // NewCatEventResource Create a new CatEventResource instance.
-func NewCatEventResource(session *mgo.Session, settings *catSettings) *CatEventResource {
+func NewEventResource(session *mgo.Session, settings *catSettings) *CatEventResource {
 	return &CatEventResource{session: session, settings: settings}
 }
 
@@ -83,7 +83,7 @@ func NewCatEventResource(session *mgo.Session, settings *catSettings) *CatEventR
 func (ev CatEventResource) Register(container *restful.Container) {
 	ws := new(restful.WebService)
 
-	event_id := ws.PathParameter("event-id", "identifier of the event").DataType("string")
+	eventID := ws.PathParameter("event-id", "identifier of the event").DataType("string")
 
 	ws.Path("/events").
 		Doc("Manage events").
@@ -99,7 +99,7 @@ func (ev CatEventResource) Register(container *restful.Container) {
 
 	ws.Route(ws.GET("/{event-id}").To(ev.getEvent).
 		Doc("Get an event").
-		Param(event_id).
+		Param(eventID).
 		Do(ReturnsStatus(http.StatusOK, "", CatEvent{}),
 			ReturnsError(http.StatusNotFound),
 			ReturnsError(http.StatusInternalServerError)).
@@ -108,7 +108,7 @@ func (ev CatEventResource) Register(container *restful.Container) {
 	// Static images.
 	ws.Route(ws.GET("/{event-id}/{subpath:*}").To(ev.eventStaticFiles).
 		Doc("Get static files for an event such as images").
-		Param(event_id).
+		Param(eventID).
 		Do(ReturnsStatus(http.StatusOK, "", CatEvent{}),
 			ReturnsError(http.StatusNotFound),
 			ReturnsError(http.StatusInternalServerError)))

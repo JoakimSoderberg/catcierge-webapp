@@ -25,7 +25,7 @@ type ListResponseHeader struct {
 
 // ReverseUrl Based on an incoming HTTP request gets the full URL with hostname.
 func ReverseUrl(request *http.Request, fullPath string) string {
-	ev, ok := FromContext(request.Context())
+	ev, ok := FromEventContext(request.Context())
 	serverScheme := "http"
 	if ok {
 		serverScheme = ev.settings.serverScheme

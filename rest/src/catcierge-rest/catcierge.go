@@ -12,5 +12,7 @@ type CatciergeResource struct {
 func NewCatciergeResource(session *mgo.Session, settings *catSettings) *CatciergeResource {
 	return &CatciergeResource{
 		session:  session,
-		settings: settings}
+		settings: settings,
+		events:   &CatEventResource{},
+		accounts: &Accounts{}}
 }
