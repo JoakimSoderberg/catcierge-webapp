@@ -169,11 +169,14 @@ func main() {
 	wsContainer := restful.NewContainer()
 	wsContainer.Filter(basicTokenAuthenticate)
 
-	ev := NewEventsResource(db, settings)
-	ev.Register(wsContainer)
+	events := NewEventsResource(db, settings)
+	events.Register(wsContainer)
 
-	ac := NewAccountResource(db, settings)
-	ac.Register(wsContainer)
+	accounts := NewAccountResource(db, settings)
+	accounts.Register(wsContainer)
+
+	users := NewUserResource(db, settings)
+	users.Register(wsContainer)
 
 	// TODO: Add support for getting JSON schemas for everything.
 	// TODO: Add heartbeat support, so we can notify if catcierge is down
@@ -191,7 +194,7 @@ func main() {
 	log.Printf("Start listening on port %v", settings.port)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%v", settings.port),
-		Handler: WrapContexts(wsContainer, []CatciergeContextAdder{ev, ac, settings})}
+		Handler: WrapContexts(wsContainer, []CatciergeContextAdder{events, accounts, users, settings})}
 
 	// Handle interrupts.
 	c := make(chan os.Signal, 1)
