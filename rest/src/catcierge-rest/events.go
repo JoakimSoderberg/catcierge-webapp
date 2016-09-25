@@ -114,7 +114,9 @@ func (ev CatEventsResource) Register(container *restful.Container) {
 
 	ws.Route(ws.POST("").To(ev.createEvent).
 		Doc("Create an event based on an event ZIP file").
-		Do(ReturnsError(http.StatusBadRequest),
+		Do(ReturnsStatus(http.StatusOK, "", CatEvent{}),
+			ReturnsError(http.StatusBadRequest),
+			ReturnsError(http.StatusUnauthorized),
 			ReturnsError(http.StatusConflict),
 			ReturnsError(http.StatusInternalServerError)))
 
@@ -177,7 +179,7 @@ func (ev *CatEventsResource) getEvent(request *restful.Request, response *restfu
 // Create a new catcierge event by uploading a ZIP file.
 func (ev *CatEventsResource) createEvent(request *restful.Request, response *restful.Response) {
 	fileSize := ByteSize(request.Request.ContentLength)
-
+	// TODO: Add check if user is logged in.
 	if fileSize >= DefaultMaxEventSize {
 		msg := fmt.Sprintf("Max file size allowed %s but got %s", DefaultMaxEventSize, fileSize)
 		log.Println(msg)

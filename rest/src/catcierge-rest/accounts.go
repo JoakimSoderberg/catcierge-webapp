@@ -7,6 +7,7 @@ import (
 	"labix.org/v2/mgo"
 
 	restful "github.com/emicklei/go-restful"
+	bson "labix.org/v2/mgo/bson"
 )
 
 // AccountsResource Account
@@ -16,7 +17,9 @@ type AccountsResource struct {
 
 // Account representation.
 type Account struct {
-	Name string `json:"name"`
+	ID    bson.ObjectId   `json:"id" bson:"_id"`
+	Name  string          `json:"name"`
+	Users []bson.ObjectId `json:"users" bson:"users"`
 }
 
 // AccountListResponse A response returned when listing the accounts.
@@ -69,6 +72,14 @@ func (ac AccountsResource) Register(container *restful.Container) {
 			ReturnsError(http.StatusInternalServerError)).
 		Writes(Account{}))
 
+	ws.Route(ws.POST("").To(ac.createAccount).
+		Doc("Create an account").
+		Do(ReturnsStatus(http.StatusOK, "", Account{}),
+			ReturnsError(http.StatusBadRequest),
+			ReturnsError(http.StatusUnauthorized),
+			ReturnsError(http.StatusConflict),
+			ReturnsError(http.StatusInternalServerError)))
+
 	container.Add(ws)
 }
 
@@ -79,4 +90,10 @@ func (ac *AccountsResource) listAccounts(req *restful.Request, resp *restful.Res
 
 func (ac *AccountsResource) getAccount(req *restful.Request, resp *restful.Response) {
 
+}
+
+func (ac *AccountsResource) createAccount(req *restful.Request, resp *restful.Response) {
+	// TODO: To create an account one has to be:
+	// TODO: An authenticated user
+	// TODO:
 }

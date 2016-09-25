@@ -1,6 +1,5 @@
 package main
 
-// TODO: Implement users resource
 // TODO: Implement API tokens for users
 
 import (
@@ -8,6 +7,7 @@ import (
 	"net/http"
 
 	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 
 	restful "github.com/emicklei/go-restful"
 )
@@ -19,7 +19,12 @@ type UsersResource struct {
 
 // User representation.
 type User struct {
-	Name string `json:"name"`
+	ID        bson.ObjectId `json:"id" bson:"_id"` // User ID in MongoDB.
+	Name      string        `json:"name"`          // Full name.
+	AvatarURL string        `json:"avatar_url"`    // Avatar image URL.
+	Email     string        `json:"email"`         // E-mail.
+	Nickname  string        `json:"nickname"`      // Nickname or username.
+	Provider  string        `json:"provider"`      // Login provider (if any).
 }
 
 // UserListResponse A response returned when listing the Users.

@@ -147,9 +147,16 @@ func basicTokenAuthenticate(req *restful.Request, resp *restful.Response, chain 
 		resp.WriteErrorString(401, "401: Not Authorized")
 		return
 	}*/
-	// TODO: Get UserResource context here.
-	// TODO: Look up tokens in the database to authenticate.
-	// TODO:
+
+	/*users, ok := FromUsersContext(req.Request.Context())
+	if !ok {
+		log.Printf("Failed to get users resource from context in basic authentication")
+		WriteCatciergeErrorString(resp, http.StatusInternalServerError, "")
+		return
+	}*/
+
+	// TODO: Add an auth
+	// TODO: Add authentication status to a new Authentication context.
 
 	chain.ProcessFilter(req, resp)
 }
@@ -178,6 +185,9 @@ func main() {
 	users := NewUserResource(db, settings)
 	users.Register(wsContainer)
 
+	tokens := NewAccessTokensResource(db, settings)
+	tokens.Register(wsContainer)
+
 	// TODO: Add support for getting JSON schemas for everything.
 	// TODO: Add heartbeat support, so we can notify if catcierge is down
 	setupSwagger(wsContainer, settings)
@@ -194,7 +204,7 @@ func main() {
 	log.Printf("Start listening on port %v", settings.port)
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%v", settings.port),
-		Handler: WrapContexts(wsContainer, []CatciergeContextAdder{events, accounts, users, settings})}
+		Handler: WrapContexts(wsContainer, []CatciergeContextAdder{events, accounts, users, settings, tokens})}
 
 	// Handle interrupts.
 	c := make(chan os.Signal, 1)
