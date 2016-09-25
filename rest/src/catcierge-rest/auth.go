@@ -9,10 +9,33 @@ import (
 	"labix.org/v2/mgo/bson"
 )
 
+// AuthenticationState is used to store Authentication state for
+// a single HTTP request. If the request is authenticated and if
+// so what user is logged in (our owns the token that was used to login).
 type AuthenticationState struct {
-	isAuthenticated bool
+	IsAuthenticated bool  // If this request is authenticated.
+	User            *User // The logged in user if any.
 }
 
+var authStateKey key
+
+// FromAuthStateContext returns the CatEventResource in ctx, if any.
+func FromAuthStateContext(ctx context.Context) (*AuthenticationState, bool) {
+	ev, ok := ctx.Value(authStateKey).(*AuthenticationState)
+	return ev, ok
+}
+
+// AddContext add AccountsResource to the context.
+func (ac *AuthenticationState) AddContext(c *context.Context) context.Context {
+	return context.WithValue(*c, authStateKey, ac)
+}
+
+// NewAuthenticationState create a new AuthenticationState
+func NewAuthenticationState(isAuthenticated bool, user *User) *AuthenticationState {
+	return &AuthenticationState{IsAuthenticated: isAuthenticated, User: user}
+}
+
+// AccessToken is used to authenticate to the API with.
 type AccessToken struct {
 	ID        bson.ObjectId `json:"id" bson:"_id"`
 	Token     string        `json:"token" bson:"token"`
@@ -20,6 +43,7 @@ type AccessToken struct {
 	AccountID bson.ObjectId `json:"account_id" bson:"account_id"`
 }
 
+// AccessTokenResource resource
 type AccessTokenResource struct {
 	CatciergeResource
 }
@@ -69,7 +93,7 @@ func (ac AccessTokenResource) Register(container *restful.Container) {
 
 	ws.Route(ws.GET("/").To(ac.listAccessTokens).
 		Doc("List access tokens").
-		Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
+		Returns(http.StatusOK, http.StatusText(http.StatusOK), AccessTokenListResponse{}).
 		Do(AddListRequestParams(ws),
 			ReturnsError(http.StatusInternalServerError)).
 		Writes(AccountListResponse{}))
@@ -94,11 +118,10 @@ func (ac AccessTokenResource) Register(container *restful.Container) {
 }
 
 func (ev *AccessTokenResource) listAccessTokens(request *restful.Request, response *restful.Response) {
-
+	// TODO: We can only list access tokens for the currently logged in user.
 }
 
 func (ev *AccessTokenResource) getAccessToken(request *restful.Request, response *restful.Response) {
-
 }
 
 func (ev *AccessTokenResource) createAccessToken(request *restful.Request, response *restful.Response) {

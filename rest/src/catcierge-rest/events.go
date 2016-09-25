@@ -91,7 +91,7 @@ func (ev CatEventsResource) Register(container *restful.Container) {
 
 	ws.Route(ws.GET("/").To(ev.listEvents).
 		Doc("Get all events").
-		Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
+		Returns(http.StatusOK, http.StatusText(http.StatusOK), CatEventListResponse{}).
 		Do(AddListRequestParams(ws),
 			ReturnsError(http.StatusInternalServerError)).
 		Writes(CatEventListResponse{}))

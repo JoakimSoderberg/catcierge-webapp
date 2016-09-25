@@ -8,8 +8,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 
 	"labix.org/v2/mgo"
+	"labix.org/v2/mgo/bson"
 
 	restful "github.com/emicklei/go-restful"
 	"github.com/emicklei/go-restful/swagger"
@@ -148,15 +150,46 @@ func basicTokenAuthenticate(req *restful.Request, resp *restful.Response, chain 
 		return
 	}*/
 
-	/*users, ok := FromUsersContext(req.Request.Context())
+	var tokenStr string
+	rawTokenStr := req.Request.Header.Get("Authorization")
+	// TODO: If encoded nil skip checking token.
+
+	// TODO: Break out below into function.
+	i := strings.Index(rawTokenStr, "token ")
+	if i != -1 {
+		tokenStr = rawTokenStr[i:]
+	} else {
+		// TODO: skip
+	}
+
+	users, ok := FromUsersContext(req.Request.Context())
 	if !ok {
 		log.Printf("Failed to get users resource from context in basic authentication")
 		WriteCatciergeErrorString(resp, http.StatusInternalServerError, "")
 		return
-	}*/
+	}
 
-	// TODO: Add an auth
-	// TODO: Add authentication status to a new Authentication context.
+	var token AccessToken
+	var authState AuthenticationState
+
+	// If the access token is found in the database, get the logged in user.
+	err := users.session.DB("catcierge").C("tokens").Find(bson.M{"token": tokenStr}).One(&token)
+	if err != nil {
+		log.Printf("No such token %s", tokenStr)
+	} else {
+		// TODO: Include this in the above query instead by doing magic with the AuthenticationState type
+		err = users.session.DB("catcierge").C("users").FindId(token.UserID).One(&authState.User)
+		if err != nil {
+			log.Printf("Invalid token %s", tokenStr)
+		} else {
+			authState.IsAuthenticated = true
+		}
+	}
+
+	// Add the Authentication state to the HTTP request context.
+	ctx := req.Request.Context()
+	ctx = authState.AddContext(&ctx)
+	req.Request = req.Request.WithContext(ctx)
 
 	chain.ProcessFilter(req, resp)
 }
