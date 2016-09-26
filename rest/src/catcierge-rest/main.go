@@ -141,7 +141,10 @@ func WrapContexts(handler http.Handler, resources []CatciergeContextAdder) http.
 	return GetWrappedContextHTTPHandler(handler, c)
 }
 
-func InjectAuthenticationState(req *http.Request, tokenStr string) (*AuthenticationState, error) {
+// GetAuthenticationStateFromToken gets an authentication state based on a given token. We can later
+// use this state in the handlers to verify if we're authenticated or not, and which user is logged in if
+// that is the case.
+func GetAuthenticationStateFromToken(req *http.Request, tokenStr string) (*AuthenticationState, error) {
 	users, ok := FromUsersContext(req.Context())
 	if !ok {
 		return nil, errors.New("Failed to get users resource from context in basic authentication")
@@ -181,7 +184,7 @@ func basicTokenAuthenticate(req *restful.Request, resp *restful.Response, chain 
 		goto skip
 	}
 
-	authState, err = InjectAuthenticationState(req.Request, rawTokenStr[i:])
+	authState, err = GetAuthenticationStateFromToken(req.Request, rawTokenStr[i:])
 	if authState == nil {
 		if err != nil {
 			log.Printf("Failed to inject AuthenticationState into request: %s", err)
@@ -212,6 +215,8 @@ func main() {
 
 	// Setup Go-restful and create the REST resources.
 	wsContainer := restful.NewContainer()
+
+	// TODO: Add more filters, such as session authentication.
 	wsContainer.Filter(basicTokenAuthenticate)
 
 	events := NewEventsResource(db, settings)
