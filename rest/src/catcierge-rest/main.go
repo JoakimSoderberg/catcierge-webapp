@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -140,33 +141,10 @@ func WrapContexts(handler http.Handler, resources []CatciergeContextAdder) http.
 	return GetWrappedContextHTTPHandler(handler, c)
 }
 
-func basicTokenAuthenticate(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
-	//encoded := req.Request.Header.Get("Authorization")
-	// usr/pwd = admin/admin
-	// real code does some decoding
-	/*if len(encoded) == 0 || "Bearer YWRtaW46YWRtaW4=" != encoded {
-		resp.AddHeader("WWW-Authenticate", "Basic realm=Protected Area")
-		resp.WriteErrorString(401, "401: Not Authorized")
-		return
-	}*/
-
-	var tokenStr string
-	rawTokenStr := req.Request.Header.Get("Authorization")
-	// TODO: If encoded nil skip checking token.
-
-	// TODO: Break out below into function.
-	i := strings.Index(rawTokenStr, "token ")
-	if i != -1 {
-		tokenStr = rawTokenStr[i:]
-	} else {
-		// TODO: skip
-	}
-
-	users, ok := FromUsersContext(req.Request.Context())
+func InjectAuthenticationState(req *http.Request, tokenStr string) (*AuthenticationState, error) {
+	users, ok := FromUsersContext(req.Context())
 	if !ok {
-		log.Printf("Failed to get users resource from context in basic authentication")
-		WriteCatciergeErrorString(resp, http.StatusInternalServerError, "")
-		return
+		return nil, errors.New("Failed to get users resource from context in basic authentication")
 	}
 
 	var token AccessToken
@@ -175,17 +153,44 @@ func basicTokenAuthenticate(req *restful.Request, resp *restful.Response, chain 
 	// If the access token is found in the database, get the logged in user.
 	err := users.session.DB("catcierge").C("tokens").Find(bson.M{"token": tokenStr}).One(&token)
 	if err != nil {
-		log.Printf("No such token %s", tokenStr)
-	} else {
-		// TODO: Include this in the above query instead by doing magic with the AuthenticationState type
-		err = users.session.DB("catcierge").C("users").FindId(token.UserID).One(&authState.User)
-		if err != nil {
-			log.Printf("Invalid token %s", tokenStr)
-		} else {
-			authState.IsAuthenticated = true
-		}
+		return &authState, fmt.Errorf("No such token '%s'", tokenStr)
 	}
 
+	// TODO: Include this in the above query instead by doing magic with the AuthenticationState type
+	err = users.session.DB("catcierge").C("users").FindId(token.UserID).One(&authState.User)
+	if err != nil {
+		return &authState, fmt.Errorf("Invalid token '%s'", tokenStr)
+	}
+
+	authState.IsAuthenticated = true
+	return &authState, nil
+}
+
+func basicTokenAuthenticate(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+	var i int
+	var authState *AuthenticationState
+	var err error
+
+	rawTokenStr := req.Request.Header.Get("Authorization")
+	if rawTokenStr == "" {
+		goto skip
+	}
+
+	i = strings.Index(rawTokenStr, "token ")
+	if i == -1 {
+		goto skip
+	}
+
+	authState, err = InjectAuthenticationState(req.Request, rawTokenStr[i:])
+	if authState == nil {
+		if err != nil {
+			log.Printf("Failed to inject AuthenticationState into request: %s", err)
+		}
+		WriteCatciergeErrorString(resp, http.StatusInternalServerError, "")
+		return
+	}
+
+skip:
 	// Add the Authentication state to the HTTP request context.
 	ctx := req.Request.Context()
 	ctx = authState.AddContext(&ctx)
