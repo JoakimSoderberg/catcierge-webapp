@@ -204,6 +204,9 @@ skip:
 
 func main() {
 
+	// TODO: Move all of this into a separate package that simply takes a config.
+	// TODO: Read config file.
+
 	// Parse command line flags.
 	app := kingpin.New(os.Args[0], "A REST API Server for the Catcierge project.")
 	settings := configureFlags(app)
@@ -263,6 +266,7 @@ func main() {
 
 	if settings.useSSL {
 		log.Printf("Using SSL")
+		// TODO: Add redirect handler for HTTP to HTTPS (or simply a 404 with "Use HTTPS")
 		settings.serverScheme = "https"
 		log.Fatal(server.ListenAndServeTLS(settings.sslCert, settings.sslKey))
 	} else {

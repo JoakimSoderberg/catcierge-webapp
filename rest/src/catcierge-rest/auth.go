@@ -26,8 +26,8 @@ func FromAuthStateContext(ctx context.Context) (*AuthenticationState, bool) {
 }
 
 // AddContext add AccountsResource to the context.
-func (ac *AuthenticationState) AddContext(c *context.Context) context.Context {
-	return context.WithValue(*c, authStateKey, ac)
+func (at *AuthenticationState) AddContext(c *context.Context) context.Context {
+	return context.WithValue(*c, authStateKey, at)
 }
 
 // NewAuthenticationState create a new AuthenticationState
@@ -71,8 +71,8 @@ func FromAcessTokenContext(ctx context.Context) (*AccessTokenResource, bool) {
 }
 
 // AddContext add AccountsResource to the context.
-func (ac *AccessTokenResource) AddContext(c *context.Context) context.Context {
-	return context.WithValue(*c, accessTokenKey, ac)
+func (at *AccessTokenResource) AddContext(c *context.Context) context.Context {
+	return context.WithValue(*c, accessTokenKey, at)
 }
 
 // NewAccessTokensResource create a new AccessTokenResource
@@ -81,7 +81,7 @@ func NewAccessTokensResource(session *mgo.Session, settings *CatSettings) *Acces
 }
 
 // Register AccountsResource resource end points.
-func (ac AccessTokenResource) Register(container *restful.Container) {
+func (at AccessTokenResource) Register(container *restful.Container) {
 	ws := new(restful.WebService)
 
 	tokenID := ws.PathParameter("token-id", "Access token ID").DataType("string")
@@ -91,14 +91,14 @@ func (ac AccessTokenResource) Register(container *restful.Container) {
 		Consumes("application/json").
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
-	ws.Route(ws.GET("/").To(ac.listAccessTokens).
+	ws.Route(ws.GET("/").To(at.listAccessTokens).
 		Doc("List access tokens").
 		Returns(http.StatusOK, http.StatusText(http.StatusOK), AccessTokenListResponse{}).
 		Do(AddListRequestParams(ws),
 			ReturnsError(http.StatusInternalServerError)).
 		Writes(AccountListResponse{}))
 
-	ws.Route(ws.GET("/{token-id}").To(ac.getAccessToken).
+	ws.Route(ws.GET("/{token-id}").To(at.getAccessToken).
 		Doc("Get a single access token").
 		Param(tokenID).
 		Do(ReturnsStatus(http.StatusOK, "", Account{}),
@@ -106,7 +106,7 @@ func (ac AccessTokenResource) Register(container *restful.Container) {
 			ReturnsError(http.StatusInternalServerError)).
 		Writes(Account{}))
 
-	ws.Route(ws.POST("").To(ac.createAccessToken).
+	ws.Route(ws.POST("").To(at.createAccessToken).
 		Doc("Create an access token").
 		Do(ReturnsStatus(http.StatusOK, "", Account{}),
 			ReturnsError(http.StatusBadRequest),
@@ -117,13 +117,13 @@ func (ac AccessTokenResource) Register(container *restful.Container) {
 	container.Add(ws)
 }
 
-func (ev *AccessTokenResource) listAccessTokens(request *restful.Request, response *restful.Response) {
+func (at *AccessTokenResource) listAccessTokens(request *restful.Request, response *restful.Response) {
 	// TODO: We can only list access tokens for the currently logged in user.
 }
 
-func (ev *AccessTokenResource) getAccessToken(request *restful.Request, response *restful.Response) {
+func (at *AccessTokenResource) getAccessToken(request *restful.Request, response *restful.Response) {
 }
 
-func (ev *AccessTokenResource) createAccessToken(request *restful.Request, response *restful.Response) {
+func (at *AccessTokenResource) createAccessToken(request *restful.Request, response *restful.Response) {
 
 }
