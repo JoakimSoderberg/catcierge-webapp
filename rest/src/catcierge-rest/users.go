@@ -42,8 +42,8 @@ func FromUsersContext(ctx context.Context) (*UsersResource, bool) {
 }
 
 // AddContext add UsersResource to the context.
-func (ac *UsersResource) AddContext(c *context.Context) context.Context {
-	return context.WithValue(*c, usersKey, ac)
+func (us *UsersResource) AddContext(c *context.Context) context.Context {
+	return context.WithValue(*c, usersKey, us)
 }
 
 // NewUserResource create a new UsersResource
@@ -52,7 +52,7 @@ func NewUserResource(session *mgo.Session, settings *CatSettings) *UsersResource
 }
 
 // Register UsersResource resource end points.
-func (ac UsersResource) Register(container *restful.Container) {
+func (us UsersResource) Register(container *restful.Container) {
 	ws := new(restful.WebService)
 
 	userID := ws.PathParameter("user-id", "User ID").DataType("string")
@@ -62,14 +62,14 @@ func (ac UsersResource) Register(container *restful.Container) {
 		Consumes("application/json").
 		Produces(restful.MIME_JSON, restful.MIME_XML)
 
-	ws.Route(ws.GET("/").To(ac.listUsers).
+	ws.Route(ws.GET("/").To(us.listUsers).
 		Doc("List users").
 		Returns(http.StatusOK, http.StatusText(http.StatusOK), []CatEvent{}).
 		Do(AddListRequestParams(ws),
 			ReturnsError(http.StatusInternalServerError)).
 		Writes(UserListResponse{}))
 
-	ws.Route(ws.GET("/{user-id}").To(ac.getUser).
+	ws.Route(ws.GET("/{user-id}").To(us.getUser).
 		Doc("Get a user").
 		Param(userID).
 		Do(ReturnsStatus(http.StatusOK, "", User{}),
@@ -80,11 +80,11 @@ func (ac UsersResource) Register(container *restful.Container) {
 	container.Add(ws)
 }
 
-func (ac *UsersResource) listUsers(req *restful.Request, resp *restful.Response) {
+func (us *UsersResource) listUsers(req *restful.Request, resp *restful.Response) {
 	// TODO: Check if user is logged in and list Users based on access.
 	// TODO: If not logged in, still list public Users.
 }
 
-func (ac *UsersResource) getUser(req *restful.Request, resp *restful.Response) {
+func (us *UsersResource) getUser(req *restful.Request, resp *restful.Response) {
 
 }

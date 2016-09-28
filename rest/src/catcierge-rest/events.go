@@ -178,6 +178,7 @@ func (ev *CatEventsResource) getEvent(request *restful.Request, response *restfu
 
 // Create a new catcierge event by uploading a ZIP file.
 func (ev *CatEventsResource) createEvent(request *restful.Request, response *restful.Response) {
+	// TODO: Copy the db session for this more costly operation.
 	fileSize := ByteSize(request.Request.ContentLength)
 	// TODO: Add check if user is logged in.
 	if fileSize >= DefaultMaxEventSize {
@@ -248,7 +249,8 @@ func (ev *CatEventsResource) createEvent(request *restful.Request, response *res
 		log.Printf("Failed to insert event in database: %s", err)
 		if mgo.IsDup(err) {
 			// TODO: Return a link to the existing resource in this error.
-			WriteCatciergeErrorString(response, http.StatusConflict, fmt.Sprintf("An event with this ID already exists: %s", eventData.ID))
+			WriteCatciergeErrorString(response, http.StatusConflict,
+				fmt.Sprintf("An event with this ID already exists: %s", eventData.ID))
 		} else {
 			WriteCatciergeErrorString(response, http.StatusInternalServerError, "")
 		}
